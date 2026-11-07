@@ -153,7 +153,10 @@ public class MainActivity extends Activity {
     // "Tile style" picks how the app tiles look.
     // ("Brightness" was removed from this menu at the user's request, 2026-11-06 ~18:45; openBrightness() is still there, unused:
     // put "Brightness" back between "Apps per row" and "TV settings", plus its branch in open(), to restore it.)
-    private static final String[] SETTINGS_ITEMS = {"Wallpaper", "Tile style", "Apps per row", "TV settings", "Add app", "Play Store"};
+    private static final String[] SETTINGS_ITEMS = {"Wallpaper", "Tile style", "Apps per row", "Remote buttons", "TV settings", "Add app", "Play Store"};
+    // "Remote buttons" is only shown when this separate add-on app is installed; it opens the add-on's own settings screen.
+    // The key filter lives there, so this home screen itself needs no access to the remote's keys.
+    private static final String REMOTE_PKG = "local.beamer.remotebuttons";
 
     // LOCAL CHANGE: the tile styles. Original = the apps' own banners. Muted / Black & white = the banners, filtered so they
     // stop clashing; full colour returns on focus. Text on glass = a glass tile with only the name; Text only = no tile at all,
@@ -1119,6 +1122,7 @@ public class MainActivity extends Activity {
         List<String> list = new ArrayList<>(Arrays.asList(SETTINGS_ITEMS));
         // LOCAL CHANGE: Play Store only when it is installed and not already one of the apps on the home screen.
         if (rowApps.contains(PLAY_STORE) || launchIntent(getPackageManager(), PLAY_STORE) == null) list.remove("Play Store");
+        if (!remoteButtonsInstalled()) list.remove("Remote buttons");
         final String[] items = list.toArray(new String[0]);
         View anchor = tile(SETTINGS);
         if (anchor == null) return;
@@ -1129,8 +1133,19 @@ public class MainActivity extends Activity {
             else if ("Apps per row".equals(item)) showPerRow();
             else if ("Add app".equals(item)) showAddMenu(-1);
             else if ("Play Store".equals(item)) open(PLAY_STORE);
+            else if ("Remote buttons".equals(item)) openRemoteButtons();
             else openTvSettings();
         }, null);
+    }
+
+    private boolean remoteButtonsInstalled() {
+        try { getPackageManager().getPackageInfo(REMOTE_PKG, 0); return true; } catch (Exception e) { return false; }
+    }
+
+    private void openRemoteButtons() {
+        try {
+            startActivity(new Intent().setClassName(REMOTE_PKG, REMOTE_PKG + ".SettingsActivity").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+        } catch (Exception ignored) {}
     }
 
     // LOCAL CHANGE: Back in one of the pages of the Settings menu (Wallpaper, Tile style, Apps per row, Add app) goes back to the
