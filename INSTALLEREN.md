@@ -12,7 +12,7 @@ Er verandert niets onomkeerbaar: je kunt altijd terug naar het eigen startscherm
 
 - Een Android TV of Google TV met internet.
 - Het bestand **`tvhome.apk`** van de pagina **Releases** van deze repository (rechts op de repositorypagina), of direct via
-  `https://github.com/baflange/simple-tv-home/releases/latest/download/tvhome.apk`.
+  `https://github.com/Skifahren/simple-tv-home/releases/latest/download/tvhome.apk`.
 - Een manier om het op de tv te zetten: **A** zonder computer (Downloader-app), of **B** met een computer (`adb`).
 
 ## A. Zonder computer (Downloader-app)
@@ -21,7 +21,7 @@ Er verandert niets onomkeerbaar: je kunt altijd terug naar het eigen startscherm
 2. Open Downloader en typ bij de adresbalk dit adres (het wijst altijd naar de nieuwste versie), en kies **Go**:
 
    ```
-   https://github.com/baflange/simple-tv-home/releases/latest/download/tvhome.apk
+   https://github.com/Skifahren/simple-tv-home/releases/latest/download/tvhome.apk
    ```
 
    Downloader haalt het bestand dan op. Typen met de afstandsbediening gaat traag; liever niet typen? Gebruik dan route B.
