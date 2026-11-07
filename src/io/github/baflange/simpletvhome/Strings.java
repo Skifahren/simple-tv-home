@@ -16,6 +16,8 @@ final class Strings {
         // the tile styles (only the Dutch table has these; the others fall back to English; Glass and Duotone were removed again)
         "Tile style", "Original", "Muted", "Black & white", "Text on glass", "Text only", "Apps per row", "%d per row",
         "Remote buttons",
+        // The wallpaper names (saved by their English name, so a translation only changes what is shown)
+        "Mountains", "Misty Trees", "Misty Valley", "Snow Peaks", "Northern Lights", "Waterfall",
     };
 
     // Keyed by language ("de"), or language-country ("zh-TW") where a country writes it differently.
@@ -85,6 +87,7 @@ final class Strings {
             "Naam wijzigen", "Verborgen ingangen tonen", "TV", "Laptop", "PC", "Blu-ray", "Soundbar", "Typ een naam…",
             "Tegelstijl", "Origineel", "Gedempt", "Zwart-wit", "Tekst op glas", "Alleen tekst", "Apps per rij", "%d per rij",
             "Afstandsbediening",
+            "Bergen", "Bomen in mist", "Mistige vallei", "Besneeuwde toppen", "Noorderlicht", "Waterval",
         });
         LANGS.put("pl", new String[] {
             "Ustawienia", "Dodaj aplikację", "Sieć", "Offline", "Dźwięk", "Obraz",
