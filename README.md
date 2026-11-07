@@ -26,7 +26,7 @@ What differs from upstream:
 - **Add app** and **Replace** open a menu with the app icons, in the same style as the rest of Settings.
 - On Google TV, pressing **Home** in an app reliably brings this home screen back (the "Home button" service checks again
   after Google TV's own home screen has started).
-- Optional remote-button shortcuts (YouTube/Prime), switched off in this public build; see "Remote buttons" below.
+- A **Settings > Remote buttons** line that appears only when the author's separate add-on app is installed; see "Remote buttons" below.
 
 ## Privacy and permissions
 
@@ -40,19 +40,15 @@ What differs from upstream:
 - The service **does not see key presses**: the key-filter capability is left out of `res/xml/home_button.xml` in this
   build. You can check this yourself: `HomeButton.java` is one short file and the XML is ten lines.
 
-## Remote buttons (off in this build)
+## Remote buttons (a separate add-on, not part of this app)
 
-The author's projector remote has YouTube and Prime Video buttons, and the code can make them open other apps. This is **switched
-off** here, so the service never sees a key press. The code is still in `HomeButton.java` for anyone who wants it:
+This home screen never sees the remote's key presses. Making a remote button (such as YouTube or Prime) open an app needs
+a key filter, and that lives in a **separate add-on app** with its own package name, `local.beamer.remotebuttons`. The author
+keeps that add-on private; it is **not** in this repository, and this APK works fully without it.
 
-| Remote button | Key code | Would open |
-|---|---|---|
-| Prime | 249 | `org.jellyfin.androidtv` (Jellyfin) |
-| YouTube | `KEYCODE_BUTTON_3` (190) | `org.smarttube.stable` (SmartTube) |
-
-To turn it on, follow the note at `PRIME_KEY` / `YOUTUBE_KEY` in `HomeButton.java` (put the key codes back, and add two
-attributes back to `res/xml/home_button.xml`), change `PRIME_TARGET` / `YOUTUBE_TARGET` to your own apps, then build and
-install again. Other remotes send other key codes; the code logs unusual ones under the tag `TvHomeKeys` to help find yours.
+If an app with that package name is installed, **Settings > Remote buttons** shows up in the Settings menu and opens the
+add-on's own settings screen. Without the add-on that line is hidden. The (unused) key code in `HomeButton.java` and the
+note at `PRIME_KEY` / `YOUTUBE_KEY` are what the add-on grew out of; they have no effect in this build.
 
 ## Install
 

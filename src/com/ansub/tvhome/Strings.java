@@ -15,6 +15,7 @@ final class Strings {
         "Rename", "Show hidden inputs", "TV", "Laptop", "PC", "Blu-ray", "Soundbar", "Type a name…",
         // LOCAL CHANGE: the tile styles (only the Dutch table has these; the others fall back to English; Glass and Duotone were removed again)
         "Tile style", "Original", "Muted", "Black & white", "Text on glass", "Text only", "Apps per row", "%d per row",
+        "Remote buttons",
     };
 
     // Keyed by language ("de"), or language-country ("zh-TW") where a country writes it differently.
@@ -83,6 +84,7 @@ final class Strings {
             "Verplaats met de pijltjes en druk dan op OK", "Alle apps staan er al", "Een app toevoegen", "%s vervangen", "Achtergrond", "Tv-instellingen", "Helderheid",
             "Naam wijzigen", "Verborgen ingangen tonen", "TV", "Laptop", "PC", "Blu-ray", "Soundbar", "Typ een naam…",
             "Tegelstijl", "Origineel", "Gedempt", "Zwart-wit", "Tekst op glas", "Alleen tekst", "Apps per rij", "%d per rij",
+            "Afstandsbediening",
         });
         LANGS.put("pl", new String[] {
             "Ustawienia", "Dodaj aplikację", "Sieć", "Offline", "Dźwięk", "Obraz",

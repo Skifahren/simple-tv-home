@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.ansub.tvhome" android:versionCode="39" android:versionName="1.0.0">
+    package="com.ansub.tvhome" android:versionCode="40" android:versionName="1.1.0">
     <uses-sdk android:minSdkVersion="21" android:targetSdkVersion="34" />
     <!-- Only for the network tile: Wi-Fi, Ethernet or offline, and the Wi-Fi signal. -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
@@ -28,6 +28,8 @@
         <package android:name="com.google.android.tv.inputplayer" />
         <!-- Google TV's own home screen, which HomeButton opens when Back is held. -->
         <package android:name="com.google.android.apps.tv.launcherx" />
+        <!-- Optional add-on app for the remote's buttons: Settings > Remote buttons shows up when it is installed. -->
+        <package android:name="local.beamer.remotebuttons" />
     </queries>
     <!-- Lets "Uninstall" in the app menu open Android's uninstall prompt. -->
     <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
