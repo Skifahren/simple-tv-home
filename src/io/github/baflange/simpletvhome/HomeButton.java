@@ -1,4 +1,4 @@
-package com.ansub.tvhome;
+package io.github.baflange.simpletvhome;
 
 import android.accessibilityservice.AccessibilityService;
 import android.content.ComponentName;

@@ -1,4 +1,4 @@
-package com.ansub.tvhome;
+package io.github.baflange.simpletvhome;
 
 import java.util.HashMap;
 import java.util.Locale;

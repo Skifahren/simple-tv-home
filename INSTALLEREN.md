@@ -4,10 +4,13 @@ Simple TV Home is een eenvoudig, snel startscherm voor Android TV en Google TV: 
 Instellingen-menu (apps toevoegen, verplaatsen, vervangen en verwijderen, tegelstijl, achtergrond en aantal apps per rij).
 
 Gemaakt en getest op een **Epson EF-61W** beamer (Google TV, Android 14). Op andere Android TV / Google TV apparaten zou
-het moeten werken, maar dat is niet getest. Het is een bewerking van [Ansub/tv-detox](https://github.com/Ansub/tv-detox)
-(MIT); alleen het startscherm zit hierin.
+het moeten werken, maar dat is niet getest.
 
 Er verandert niets onomkeerbaar: je kunt altijd terug naar het eigen startscherm van je tv (zie "Weer ongedaan maken").
+
+> **Had je al versie 1.0 of 1.1?** Versie 2.0 is voor Android een andere app en werkt de oude niet bij. Verwijder eerst de
+> oude: Instellingen > Apps > **Home** > Verwijderen. Installeer daarna 2.0 zoals hieronder en zet de **Home button**-service
+> opnieuw aan. Je app-lijst, achtergrond en tegelstijl moet je opnieuw kiezen.
 
 ## Wat je nodig hebt
 

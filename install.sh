@@ -44,7 +44,7 @@ echo "Installing… If your TV shows a Google Play Protect message, follow it on
 if ! out=$(adb -s "$TV" install -r "$APK" 2>&1); then
   case "$out" in
     *UPDATE_INCOMPATIBLE*) echo "Replacing an older copy signed with a different key…"
-                           adb -s "$TV" uninstall com.ansub.tvhome >/dev/null; adb -s "$TV" install "$APK" ;;
+                           adb -s "$TV" uninstall io.github.baflange.simpletvhome >/dev/null; adb -s "$TV" install "$APK" ;;
     *) echo "$out" >&2; exit 1 ;;
   esac
 fi
@@ -55,10 +55,10 @@ if [ -n "$APPS" ] || [ -n "$QUICK" ] || [ -n "$CLOCK" ]; then
   [ -n "$APPS" ] && set -- "$@" --es apps "\"$APPS\""
   [ -n "$QUICK" ] && set -- "$@" --es quick "\"$QUICK\""
   [ -n "$CLOCK" ] && set -- "$@" --es clock "\"$CLOCK\""
-  adb -s "$TV" shell am start -n com.ansub.tvhome/.MainActivity "$@" >/dev/null
+  adb -s "$TV" shell am start -n io.github.baflange.simpletvhome/.MainActivity "$@" >/dev/null
 fi
 
-ME=com.ansub.tvhome/.MainActivity
+ME=io.github.baflange.simpletvhome/.MainActivity
 # Keeps adb's exit status, so a failed command on the TV counts as failed here.
 sh_tv() { _rc=0; _out=$(adb -s "$TV" shell "$@") || _rc=$?; [ -z "$_out" ] || printf '%s\n' "$_out" | tr -d '\r'; return $_rc; }
 current_home() { sh_tv cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME | tail -1; }
@@ -85,7 +85,7 @@ home_opens_me() {
     sleep 1
     front=$(foreground)
     case "$front" in
-      com.ansub.tvhome/*|"") ;;
+      io.github.baflange.simpletvhome/*|"") ;;
       */*) away=1; break ;;
     esac
   done
@@ -95,7 +95,7 @@ home_opens_me() {
     sleep 1
     front=$(foreground)
     case "$front" in
-      "$ME"|com.ansub.tvhome/com.ansub.tvhome.MainActivity) return 0 ;;
+      "$ME"|io.github.baflange.simpletvhome/io.github.baflange.simpletvhome.MainActivity) return 0 ;;
     esac
   done
   return 1
@@ -103,7 +103,7 @@ home_opens_me() {
 
 # Make it the default home: the role (Android 10+) and the classic way.
 if [ "$(sh_tv getprop ro.build.version.sdk)" -ge 29 ]; then
-  sh_tv cmd role add-role-holder --user 0 android.app.role.HOME com.ansub.tvhome >/dev/null 2>&1 || true
+  sh_tv cmd role add-role-holder --user 0 android.app.role.HOME io.github.baflange.simpletvhome >/dev/null 2>&1 || true
 fi
 sh_tv cmd package set-home-activity "$ME" >/dev/null 2>&1 || true
 
@@ -115,7 +115,7 @@ LAUNCHERS="com.google.android.tvlauncher com.google.android.apps.tv.launcherx co
 # the TV needs them to start, so they, unknown apps and anything always running stay on.
 is_launcher() {
   case "$1" in
-    com.ansub.tvhome|com.android.settings|com.android.tv.settings|com.android.systemui|com.android.provision) return 1 ;;
+    io.github.baflange.simpletvhome|com.android.settings|com.android.tv.settings|com.android.systemui|com.android.provision) return 1 ;;
     org.droidtv.homeintentresolver) return 1 ;;
     *setup*|*wraith*|*provision*|*systemui*|*tvcenter*|*.tv.framework*|*.tvinput*) return 1 ;;
   esac
@@ -175,7 +175,7 @@ if [ -n "$may_turn_off" ] && [ "$(current_home)" != "$ME" ]; then
   others=""
   for p in $(home_apps); do
     if is_launcher "$p"; then others="$others $p"; continue; fi
-    case "$p" in com.ansub.tvhome|com.android.settings|com.android.tv.settings|"$WRAITH") ;; *) echo "Leaving $p on: it may be needed for your TV to start." ;; esac
+    case "$p" in io.github.baflange.simpletvhome|com.android.settings|com.android.tv.settings|"$WRAITH") ;; *) echo "Leaving $p on: it may be needed for your TV to start." ;; esac
   done
   others=$(echo $others | tr ' ' '\n')
   if [ -n "$others" ]; then
@@ -238,7 +238,7 @@ fi
 
 # If Home still doesn't open us, what we turned off only left the TV without its home screen.
 # On Google TV the setup app's recovery screen then keeps restarting, and after a restart some
-# TVs never get past the logo (#14, #16). So turn it all back on before leaving.
+# TVs never get past the logo. So turn it all back on before leaving.
 reverted=
 winner=$(current_home)
 # No answer at all means the TV is gone (over Wireless debugging the connection can drop once the
@@ -283,7 +283,7 @@ if [ -n "$revert_apps" ] && [ -z "$home_ok" ]; then
     fi
     sh_tv "sed -i '/^$p\$/d' /data/local/tmp/tvhome-disabled.txt" \
       || echo "Couldn't update the undo list for $p. undo.sh will just turn it on again." >&2
-    # Google TV's home screen can come back without its notification access (#16).
+    # Google TV's home screen can come back without its notification access.
     [ "$p" = "$LAUNCHERX" ] && sh_tv cmd notification allow_listener \
       "$LAUNCHERX/.coreservices.notificationlistener.TvNotificationListenerService" >/dev/null 2>&1 || true
   done

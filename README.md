@@ -8,20 +8,14 @@ devices (Android 5.0+), but that is not tested.
 
 > Nederlandse installatiegids: [INSTALLEREN.md](INSTALLEREN.md)
 
-## This is a modified copy of someone else's project
-
-This repository is a derivative of [Ansub/tv-detox](https://github.com/Ansub/tv-detox) by Ansub Khan (MIT licence), taken
-at upstream commit `b22a1e368ee56d670d11115d8408e9025488240b` (see `UPSTREAM_COMMIT.txt`). Only the **home screen app** is
-kept here; the upstream project's debloat/cleanup part is not part of this repository. All credit for the original app and
-its install scripts goes to upstream.
-
-What differs from upstream:
+## Features
 
 - Default app list for the Netherlands/Europe (`apps.txt`); change it before building, or use Settings > Add app on the TV.
-- **Ten photo wallpapers** (see below) instead of gradients, with a wallpaper list that shows thumbnails.
+- **Ten photo wallpapers** (see below), with a wallpaper list that shows thumbnails.
 - Photos are cropped and darkened **once, on the computer** (`tools/BakeWallpapers.java`) and stored as WebP, so the TV
-  only has to show a ready-made picture and the APK stays small (about 3 MB). Choosing a wallpaper no longer freezes the screen.
-- No HDMI-input tiles and no network tile: the home screen is only apps, the clock and a Settings icon (bottom right).
+  only has to show a ready-made picture and the APK stays small (about 3 MB).
+- Just apps, the clock and a Settings icon (bottom right): no HDMI-input tiles, no network tile.
+- Five tile styles (Original, Muted, Black & white, Text on glass, Text only) and 2 to 7 apps per row.
 - Pressing **Back** in a Settings page (Wallpaper, Tile style, Apps per row, Add app) returns to the Settings menu.
 - **Add app** and **Replace** open a menu with the app icons, in the same style as the rest of Settings.
 - On Google TV, pressing **Home** in an app reliably brings this home screen back (the "Home button" service checks again
@@ -50,6 +44,10 @@ If an app with that package name is installed, **Settings > Remote buttons** sho
 add-on's own settings screen. Without the add-on that line is hidden.
 
 ## Install
+
+> **Upgrading from 1.x?** Version 2.0 has a new app ID, so it does not update 1.x: remove the old **Home** app first
+> (Settings > Apps > Home > Uninstall, or `sh undo.sh <TV_IP>` from a 1.x download), then install 2.0 and switch the
+> **Home button** service on again. Your app list, wallpaper and tile style start fresh.
 
 - Friends / without building: see [INSTALLEREN.md](INSTALLEREN.md) (download the APK from the Releases page).
 - With a computer and `adb`: put `tvhome.apk` (from Releases) next to `install.sh`, or build it yourself, then run
@@ -81,7 +79,7 @@ To change the wallpapers, replace the originals in `wallpaper-originals/`, adjus
 
 ## Licence and credits
 
-- Code: MIT, see `LICENSE` (copyright Ansub Khan for the upstream code, plus the modifications in this repository).
+- Code: MIT, see `LICENSE`.
 - Wallpaper photos: from Wikimedia Commons, **CC BY / CC BY-SA** (not MIT). Names, authors, licences and the changes made
   to them are in [WALLPAPER_CREDITS.txt](WALLPAPER_CREDITS.txt). The originals are in `wallpaper-originals/`.
-- Not affiliated with Epson, Google, Android or the upstream author. "Google TV" and other names belong to their owners.
+- Not affiliated with Epson, Google or Android. "Google TV" and other names belong to their owners.

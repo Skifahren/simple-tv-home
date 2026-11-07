@@ -1,4 +1,4 @@
-package com.ansub.tvhome;
+package io.github.baflange.simpletvhome;
 
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
@@ -61,7 +61,7 @@ import java.util.WeakHashMap;
 public class MainActivity extends Activity {
 
     // Top-row apps, in this order of preference:
-    //  1. a list saved at install time:  am start -n com.ansub.tvhome/.MainActivity --es apps "pkg1,pkg2"
+    //  1. a list saved at install time:  am start -n io.github.baflange.simpletvhome/.MainActivity --es apps "pkg1,pkg2"
     //     (--es apps auto  goes back to 2; add --es stamp <unique> so it's applied only once, see saveConfig)
     //  2. apps.txt (built in as Apps.LIST), topped up with other TV apps installed on this TV.
     // Missing apps are skipped. Topping up stops at one row of apps, but a chosen list can be any length:
@@ -77,7 +77,7 @@ public class MainActivity extends Activity {
     private static final String SETTINGS = "settings";
     private static final String[] EDIT_ITEMS = {"Move", "Replace", "Remove from home", "Uninstall"};
     private static final String[] EDIT_ITEMS_SYSTEM = {"Move", "Replace", "Remove from home", "App info"};
-    // Tiles have a fixed width of 194 px on the 1920 px design grid (upstream: derived, 258 px, 6 per row) and sit in the
+    // Tiles have a fixed width of 194 px on the 1920 px design grid and sit in the
     // bottom left corner. Apps per row is a setting (Settings > Apps per row, PER_ROW_MIN..MAX, saved as "per_row"; 3 until
     // picked). Only perRow() sets the row length: x, rows and Up/Down all follow it. Seven tiles still end well left of the icon.
     private static final int PER_ROW_DEFAULT = 3, PER_ROW_MIN = 2, PER_ROW_MAX = 7, TILE_W = 194;
@@ -106,9 +106,7 @@ public class MainActivity extends Activity {
     // Long enough to read as motion, short enough that a run of d-pad presses never feels behind.
     private static final int FOCUS_MS = 180, RADIUS_UP = 10;
     private static final Interpolator FOCUS_EASE = new DecelerateInterpolator(1.8f);
-    // The row step follows the tile height (tile + ROW_GAP). Upstream used a fixed 224, which is
-    // exactly 145 (a tile at 6 per row) + 79, so nothing moves at 6 per row.
-    // ROW_GAP is now 36 (same as the horizontal GAP): there is no caption under the tiles any more, so the room it needed (79) is gone.
+    // The row step follows the tile height: tile + ROW_GAP, the same 36 as the horizontal GAP.
     private static final int ROW1_TOP = 604, ROW_GAP = 36;
     private static final int GRID_MIN_TOP = 48, EDGE = 64; /* EDGE = distance of the apps (left, bottom) and of the top bar (right) to the screen edge; GRID_MIN_TOP was 400, the grid now grows upwards from the bottom left corner until here */ // More rows push the grid up, but not into the clock
     private static final int ICON_TOP = 76, ICON_BUTTON = 72, ICON_SIZE = 40, ICON_GAP = 12; // level with the date
@@ -154,7 +152,7 @@ public class MainActivity extends Activity {
         {0xFF4A6A90, 0xFF4A6A90, 0xFF2A3A50, 0xFFFFA040, 0xFFD04838}, // Nyhavn
         {0xFF5080C0, 0xFF5080C0, 0xFF3A5A88, 0xFFF0F4FF, 0xFF6A5A48}, // Honfleur
     };
-    // Upstream's dark "Dusk" gradient: the background when a photo can't be drawn.
+    // A dark "Dusk" gradient: the background when a photo can't be drawn.
     private static final int[] DUSK = {0xFF15100F, 0xFF0A0809, 0xFF050405, 0x36FF8048, 0x2EAA3C8C};
     private float scale = 1f;
 
@@ -165,7 +163,7 @@ public class MainActivity extends Activity {
     private int rowStep;   // Distance between rows, tile height + ROW_GAP
     private LinearLayout iconBar; // Bottom right: the Settings icon and any settings shortcuts (the clock is on its own, top right)
     private FrameLayout.LayoutParams iconBarLp;
-    private float tileK = 1f; // How much smaller than upstream's 258 px tile the tiles are (1 = same size)
+    private float tileK = 1f; // How much smaller than a 258 px reference tile the tiles are (1 = same size)
     private final List<View> tiles = new ArrayList<>();
     private final Map<View, ValueAnimator> lifts = new WeakHashMap<>(); // a running focus fade per tile
     private boolean dirty = true;
@@ -177,7 +175,7 @@ public class MainActivity extends Activity {
     private boolean longPressed; // OK was held: swallow the key-up so the app doesn't open
     private boolean backHeld; // Back was held and opened Google TV's home screen: swallow the key-up
     // The tile OK went down on. An app that closes on OK's key-down (Netflix's "Exit") hands the matching
-    // key-up to the tile still focused here, so a key-up only opens the app it went down on (#30).
+    // key-up to the tile still focused here, so a key-up only opens the app it went down on.
     private String okDownKey;
 
     // Apps installed, removed or updated. This often lands once Home is already back in front (an app
@@ -410,7 +408,7 @@ public class MainActivity extends Activity {
 
     // Static gradient, drawn by the window: no extra view, no animation. It's painted once into a
     // screen-sized picture: as three gradients, low-end GPUs paint it again on every frame of a focus
-    // move, and those frames take two to six times as long (#69). On Android 8+ the picture moves to
+    // move, and those frames take two to six times as long. On Android 8+ the picture moves to
     // the GPU, so the home screen uses no more memory than before; if anything fails, the gradients stay.
     private Drawable background(int[] c) {
         GradientDrawable base = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
@@ -671,7 +669,7 @@ public class MainActivity extends Activity {
         }
 
         // Settings is a plain icon in a bar at the bottom right, level with the bottom row of apps, followed by any settings
-        // shortcuts picked with --es quick. (Upstream's HDMI and network tiles are not part of this home screen.)
+        // shortcuts picked with --es quick.
         addIcon(SETTINGS, Strings.t("Settings"), new LineIcon(LineIcon.SETTINGS), 0);
         for (int q : quickList())
             addIcon(QUICK + QUICK_NAMES[q], Strings.t(QUICK_LABELS[q]), new LineIcon(QUICK_ICONS[q]), 0);

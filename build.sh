@@ -13,15 +13,15 @@ SDK=${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}
 BT=$SDK/build-tools/34.0.0; JAR=$SDK/platforms/android-34/android.jar
 [ -f "$JAR" ] && [ -d "$BT" ] || { echo "Android SDK not found. Set ANDROID_HOME, and install platforms;android-34 and build-tools;34.0.0." >&2; exit 1; }
 
-rm -rf out; mkdir -p out/classes out/dex out/gen/com/ansub/tvhome
+rm -rf out; mkdir -p out/classes out/dex out/gen/io/github/baflange/simpletvhome
 
 # Turn the app list into Apps.java.
 {
-  echo "package com.ansub.tvhome;"
+  echo "package io.github.baflange.simpletvhome;"
   echo "final class Apps { static final String[] LIST = {"
   grep -v '^[[:space:]]*#' "${APPS:-apps.txt}" | tr -d ' \t\r' | grep -v '^$' | sed 's/.*/    "&",/'
   echo "}; }"
-} > out/gen/com/ansub/tvhome/Apps.java
+} > out/gen/io/github/baflange/simpletvhome/Apps.java
 
 "$BT/aapt2" compile --dir res -o out/res.zip
 "$BT/aapt2" link -o out/base.apk -I "$JAR" --manifest AndroidManifest.xml --min-sdk-version 21 --target-sdk-version 34 out/res.zip
