@@ -1,0 +1,58 @@
+All photos are from Wikimedia Commons, downloaded 2026-11-06 as the 1920 px wide version. Changes: the files in
+res/drawable-nodpi are cropped to 1920x1080 (16:9) and darkened at the top and bottom edges and a little overall (done
+once by tools/BakeWallpapers.java), saved as WebP (lossy, quality 80), and wallpaper_*_thumb.webp is a 96 px square of the
+middle of the photo. The unchanged downloads are in wallpaper-originals/ (Misty Trees as _AdobeRGB-original.jpg; its colour
+profile was Adobe RGB and is converted to sRGB by the tool, so the TV needs no colour conversion).
+Because of the CC BY-SA licence, these changed copies of the photos are shared under the same licence as the originals
+(CC BY-SA 4.0 or 3.0 for the photos marked so, CC BY 4.0 for the two marked CC BY). The MIT licence in LICENSE covers the code only.
+
+res/drawable-nodpi/wallpaper_nature.webp  ("Mountains")
+  "Sankt Moritz Lake Piz Muragl.jpg" by Isiwal, 2015-09-27
+  https://commons.wikimedia.org/wiki/File:Sankt_Moritz_Lake_Piz_Muragl.jpg
+  Licence: CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0)
+
+res/drawable-nodpi/wallpaper_mist_trees.webp  ("Misty Trees")
+  "Baumsilhouetten am Uetliberg mit Novembernebel und Sonnenstrahlen.jpg" by Kuhnmi
+  https://commons.wikimedia.org/wiki/File:Baumsilhouetten_am_Uetliberg_mit_Novembernebel_und_Sonnenstrahlen.jpg
+  Licence: CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0)
+  Change (7 Nov 2026): colour profile converted from Adobe RGB to sRGB (see the note on all photos below).
+
+res/drawable-nodpi/wallpaper_mist_valley.webp  ("Misty Valley")
+  "21-224-5054 NNP Synevyr RB 18.jpg" by Rbrechko
+  https://commons.wikimedia.org/wiki/File:21-224-5054_NNP_Synevyr_RB_18.jpg
+  Licence: CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0)
+
+res/drawable-nodpi/wallpaper_snow.webp  ("Snow Peaks")
+  "Winter in Tatry Mountains - Poland.jpg" by Radek Kucharski
+  https://commons.wikimedia.org/wiki/File:Winter_in_Tatry_Mountains_-_Poland.jpg
+  Licence: CC BY 4.0 (https://creativecommons.org/licenses/by/4.0)
+
+res/drawable-nodpi/wallpaper_aurora.webp  ("Northern Lights")
+  "039 Northern lights over Mývatn (Iceland) Photo by Giles Laurent.jpg" by Giles Laurent
+  https://commons.wikimedia.org/wiki/File:039_Northern_lights_over_Mývatn_(Iceland)_Photo_by_Giles_Laurent.jpg
+  Licence: CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0)
+
+res/drawable-nodpi/wallpaper_waterfall.webp  ("Waterfall")
+  "Gullfoss, Suðurland, Islandia, 2014-08-16, DD 119.JPG" by Diego Delso
+  https://commons.wikimedia.org/wiki/File:Gullfoss,_Suðurland,_Islandia,_2014-08-16,_DD_119.JPG
+  Licence: CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0)
+
+res/drawable-nodpi/wallpaper_tokyo.webp  ("Tokyo")
+  "Tokyo Tower, Minato City.jpg" by David Kernan
+  https://commons.wikimedia.org/wiki/File:Tokyo_Tower,_Minato_City.jpg
+  Licence: CC BY 4.0 (https://creativecommons.org/licenses/by/4.0)
+
+res/drawable-nodpi/wallpaper_amsterdam.webp  ("Amsterdam")
+  "Colorful canal houses at golden hour in Damrak avenue Amsterdam the Netherlands.jpg" by Basile Morin
+  https://commons.wikimedia.org/wiki/File:Colorful_canal_houses_at_golden_hour_in_Damrak_avenue_Amsterdam_the_Netherlands.jpg
+  Licence: CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0)
+
+res/drawable-nodpi/wallpaper_nyhavn.webp  ("Nyhavn")
+  "2018 - Nyhavn on sunset.jpg" by Moahim
+  https://commons.wikimedia.org/wiki/File:2018_-_Nyhavn_on_sunset.jpg
+  Licence: CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0)
+
+res/drawable-nodpi/wallpaper_honfleur.webp  ("Honfleur")
+  "Old port in Honfleur. France.jpg" by Ввласенко
+  https://commons.wikimedia.org/wiki/File:Old_port_in_Honfleur._France.jpg
+  Licence: CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0)
