@@ -4,7 +4,6 @@ import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.animation.ValueAnimator;
 import android.app.Activity;
-import android.app.AlertDialog;
 import android.app.Dialog;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -31,19 +30,9 @@ import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.LayerDrawable;
-import android.media.tv.TvContract;
-import android.media.tv.TvInputInfo;
-import android.media.tv.TvInputManager;
-import android.net.ConnectivityManager;
-import android.net.Network;
-import android.net.NetworkCapabilities;
-import android.net.NetworkRequest;
 import android.net.Uri;
-import android.net.wifi.WifiManager;
 import android.os.Bundle;
 import android.provider.Settings;
-import android.text.InputFilter;
-import android.text.InputType;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.KeyEvent;
@@ -52,16 +41,11 @@ import android.view.ViewConfiguration;
 import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowManager;
-import android.view.inputmethod.EditorInfo;
-import android.view.inputmethod.InputMethodManager;
 import android.view.animation.DecelerateInterpolator;
 import android.view.animation.Interpolator;
-import android.widget.BaseAdapter;
-import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
-import android.widget.ListView;
 import android.widget.ScrollView;
 import android.widget.TextClock;
 import android.widget.TextView;
@@ -69,13 +53,8 @@ import android.widget.TextView;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 import java.util.TreeMap;
-import java.util.TreeSet;
 import java.util.List;
 import java.util.WeakHashMap;
 
@@ -85,29 +64,24 @@ public class MainActivity extends Activity {
     //  1. a list saved at install time:  am start -n com.ansub.tvhome/.MainActivity --es apps "pkg1,pkg2"
     //     (--es apps auto  goes back to 2; add --es stamp <unique> so it's applied only once, see saveConfig)
     //  2. apps.txt (built in as Apps.LIST), topped up with other TV apps installed on this TV.
-    // Missing apps are skipped. Topping up stops at six apps, but a chosen list can be any length:
-    // apps wrap into rows of six, like Apple TV, and the page scrolls down once they don't all fit.
-    // On the TV, hold OK on an app (or press Menu) to move or remove it, or add another; that saves list 1.
-    // A network tile always sits at the top right, level with the clock. Settings shortcuts can join
-    // it there, off until picked the same way:
-    //   --es quick "bluetooth,sound,picture"
-    // (--es quick none  takes them away again; "wifi" and "ethernet" are the network tile now).
+    // Missing apps are skipped. Topping up stops at one row of apps, but a chosen list can be any length:
+    // apps wrap into rows (Settings > Apps per row), and the page scrolls once they don't all fit.
+    // On the TV, hold OK on an app (or press Menu) to move or remove it; Settings > Add app adds one. That saves list 1.
+    // Settings shortcuts can join the Settings icon at the bottom right, off until picked the same way:
+    //   --es quick "bluetooth,sound,picture"     (--es quick none  takes them away again)
     private static final String PREFS = "config";
     private static final List<String> NOT_APPS = Arrays.asList("com.android.vending", "com.android.tv.settings",
             "com.android.tv", "com.google.android.tvlauncher", "com.google.android.apps.tv.launcherx",
             "com.google.android.leanbacklauncher");
     private static final String PLAY_STORE = "com.android.vending";
     private static final String SETTINGS = "settings";
-    private static final String ADD = "add";
     private static final String[] EDIT_ITEMS = {"Move", "Replace", "Remove from home", "Uninstall"};
     private static final String[] EDIT_ITEMS_SYSTEM = {"Move", "Replace", "Remove from home", "App info"};
-    // LOCAL CHANGE (Beamer, 2026-11-06): 3 tiles per row since 17:4x (it was 4 for the first rounds; upstream: 6) at a
-    // fixed tile width of 194 px on the 1920 px design grid (upstream: derived, 258 px), i.e. 25% smaller tiles,
-    // left-aligned in the bottom left corner. Only perRow() sets the row length: x, rows and Up/Down all follow it.
-    // LOCAL CHANGE (2026-11-06 ~18:20): the row length is a setting now (Settings icon > Apps per row, PER_ROW_MIN..MAX,
-    // saved as "per_row"); PER_ROW_DEFAULT is what it is until the user picks one. Seven tiles still end well left of the icon.
-    private static final int PER_ROW_DEFAULT = 3, PER_ROW_MIN = 2, PER_ROW_MAX = 7, MAX_INPUTS = 4, TILE_W = 194;
-    private int perRow = -1; // apps per row in use (also while the panel previews one); -1 = not read yet
+    // Tiles have a fixed width of 194 px on the 1920 px design grid (upstream: derived, 258 px, 6 per row) and sit in the
+    // bottom left corner. Apps per row is a setting (Settings > Apps per row, PER_ROW_MIN..MAX, saved as "per_row"; 3 until
+    // picked). Only perRow() sets the row length: x, rows and Up/Down all follow it. Seven tiles still end well left of the icon.
+    private static final int PER_ROW_DEFAULT = 3, PER_ROW_MIN = 2, PER_ROW_MAX = 7, TILE_W = 194;
+    private int perRow = -1; // Apps per row in use (also while the menu previews one); -1 = not read yet
 
     private int perRow() {
         if (perRow < 1)
@@ -120,18 +94,9 @@ public class MainActivity extends Activity {
     private static final String[] QUICK_NAMES = {"bluetooth", "sound", "picture"};
     private static final String[] QUICK_LABELS = {"Bluetooth", "Sound", "Picture"};
     private static final int[][] QUICK_ICONS = {LineIcon.BLUETOOTH, LineIcon.SOUND, LineIcon.PICTURE};
-    private static final String NETWORK = "network";
-    private static final int OFFLINE = 0, ETHERNET = 4; // network states; 1 to 3 are Wi-Fi bars
 
-    // Saved on the TV: custom input names ("id=name" per line), hidden inputs (one id per line),
-    // and the clock override ("12" or "24"; absent follows the TV).
-    private static final String PREF_INPUT_NAMES = "inputnames", PREF_HIDDEN_INPUTS = "hiddeninputs";
-    private static final String PREF_CLOCK = "clock", PREF_FAKE_INPUTS = "fakeinputs";
-    // Upstream's emulator test hook (a throwaway input with no HDMI port behind it). This repository's install.sh
-    // no longer sends it and does not ship that input; the code is kept as it was so the app behaves the same.
-    private static final String FAKE_INPUT_PKG = "com.ansub.fakeinput";
-    // Names an input can be given with the remote alone: no keyboard, no typing.
-    private static final String[] INPUT_PRESETS = {"TV", "PlayStation", "Xbox", "Switch", "Laptop", "PC", "Blu-ray", "Soundbar"};
+    // The clock override, saved on the TV: "12" or "24"; absent follows the TV.
+    private static final String PREF_CLOCK = "clock";
     // TCL keeps its own Picture and Sound panels in a service; Android's Sound page is missing there.
     private static final String TCL_SHOW_WINDOW = "com.tcl.settings.SHOW_WINDOW";
 
@@ -141,58 +106,44 @@ public class MainActivity extends Activity {
     // Long enough to read as motion, short enough that a run of d-pad presses never feels behind.
     private static final int FOCUS_MS = 180, RADIUS_UP = 10;
     private static final Interpolator FOCUS_EASE = new DecelerateInterpolator(1.8f);
-    // LOCAL CHANGE: the row step follows the tile height (tile + ROW_GAP). Upstream used a fixed 224, which is
+    // The row step follows the tile height (tile + ROW_GAP). Upstream used a fixed 224, which is
     // exactly 145 (a tile at 6 per row) + 79, so nothing moves at 6 per row.
     // ROW_GAP is now 36 (same as the horizontal GAP): there is no caption under the tiles any more, so the room it needed (79) is gone.
     private static final int ROW1_TOP = 604, ROW_GAP = 36;
-    private static final int GRID_MIN_TOP = 48, EDGE = 64; /* LOCAL CHANGE: EDGE = distance of the apps (left, bottom) and of the top bar (right) to the screen edge; GRID_MIN_TOP was 400, the grid now grows upwards from the bottom left corner until here */ // more rows push the grid up, but not into the clock
+    private static final int GRID_MIN_TOP = 48, EDGE = 64; /* EDGE = distance of the apps (left, bottom) and of the top bar (right) to the screen edge; GRID_MIN_TOP was 400, the grid now grows upwards from the bottom left corner until here */ // More rows push the grid up, but not into the clock
     private static final int ICON_TOP = 76, ICON_BUTTON = 72, ICON_SIZE = 40, ICON_GAP = 12; // level with the date
 
     // The Settings tile opens a small menu: the home screen's own settings, then the TV's.
-    // LOCAL CHANGE: "Add app" and "Play Store" moved here from the icon bar (which now only holds Settings), and
-    // "Tile style" picks how the app tiles look.
-    // ("Brightness" was removed from this menu at the user's request, 2026-11-06 ~18:45; openBrightness() is still there, unused:
-    // put "Brightness" back between "Apps per row" and "TV settings", plus its branch in open(), to restore it.)
+    // "Add app" and "Play Store" live here instead of on the home screen itself; "Tile style" picks how the app tiles look.
     private static final String[] SETTINGS_ITEMS = {"Wallpaper", "Tile style", "Apps per row", "Remote buttons", "TV settings", "Add app", "Play Store"};
     // "Remote buttons" is only shown when this separate add-on app is installed; it opens the add-on's own settings screen.
     // The key filter lives there, so this home screen itself needs no access to the remote's keys.
     private static final String REMOTE_PKG = "local.beamer.remotebuttons";
 
-    // LOCAL CHANGE: the tile styles. Original = the apps' own banners. Muted / Black & white = the banners, filtered so they
+    // The tile styles. Original = the apps' own banners. Muted / Black & white = the banners, filtered so they
     // stop clashing; full colour returns on focus. Text on glass = a glass tile with only the name; Text only = no tile at all,
     // only the name (glass appears on focus). Both text styles are half as tall as an app tile and sit closer together.
-    // (Glass and Duotone styles were tried and removed at the user's request; see the change log.) The saved choice is the NAME.
+    // The saved choice is the NAME.
     private static final String[] TILE_STYLES = {"Original", "Muted", "Black & white", "Text on glass", "Text only"};
     private static final int STYLE_ORIGINAL = 0, STYLE_MUTED = 1, STYLE_MONO = 2, STYLE_TEXT = 3, STYLE_PLAIN = 4;
     // Text styles: the gaps between the (half-height) blocks, replacing GAP and ROW_GAP (36 each).
     private static final int TEXT_GAP = 16, TEXT_ROW_GAP = 10;
-    private int colGap; // LOCAL CHANGE: distance between columns, GAP or TEXT_GAP; set by buildTiles
-    private int tileStyle = -1; // the style in use (also while a preview in the panel is showing); -1 = not read yet
-    // Android TV 11 and later (Google TV too) has no Display page, but its "Display & Sound" page holds Picture.
-    private static final String[] TV_DISPLAY_SOUND = {"com.android.tv.settings",
-            "com.android.tv.settings.device.displaysound.DisplaySoundActivity"};
-    // Wallpapers, saved by name: a gradient top to bottom, then a glow from the top left and one from
-    // the bottom right. Dark ones first, then bright ones that get darker towards the bottom, so the
-    // white labels stay easy to read. Only colours, no images, so every one costs the same as Dusk.
-    // LOCAL CHANGE: the first PHOTO_COUNT entries are photos (res/drawable-nodpi/wallpaper_*.jpg, authors and licences
-    // in WALLPAPER_CREDITS.txt) instead of gradients, "Mountains" first and the default. Their rows below only give the
-    // little dot in the picker its colours. Names must stay unique: the choice is saved by name.
-    // LOCAL CHANGE (7 Nov): the picker only lists the ten photos. The 14 gradients below Honfleur (Dusk, Midnight, Plum, Forest,
-    // Graphite, Ocean, Ember, Sunset, Lagoon, Aurora, Coral, Iris, Meadow, Gold) were taken out at the user's request; their rows
-    // stay in WALLPAPERS (Dusk, row 10, is the fallback when a photo can't be drawn). To bring one back, add its name here in
-    // the same order as the rows. A saved name that is no longer listed (e.g. "Gold") falls back to "Mountains" in wallpaper().
+    private int colGap; // Distance between columns, GAP or TEXT_GAP; set by buildTiles
+    private int tileStyle = -1; // The style in use (also while the menu previews one); -1 = not read yet
+    // Wallpapers: ten photos (Wikimedia Commons; authors and licences in WALLPAPER_CREDITS.txt), saved by NAME, so names must
+    // stay unique. A saved name that is no longer listed falls back to the first, "Mountains".
+    // The photos in res/drawable-nodpi are BAKED by tools/BakeWallpapers.java from wallpaper-originals/: cropped to 1920x1080,
+    // darkened at the top (clock), the bottom (apps) and a little overall, and saved as WebP, so the TV only decodes them.
+    // Each also has a 96 px square for the wallpaper list: wallpaper_*_thumb.webp.
     private static final String[] WALLPAPER_NAMES = {"Mountains", "Misty Trees", "Misty Valley", "Snow Peaks", "Northern Lights",
             "Waterfall", "Tokyo", "Amsterdam", "Nyhavn", "Honfleur"};
-    private static final int PHOTO_COUNT = 10;        // indexes 0..9 above are photos
     private static final String[] PHOTO_RES = {"wallpaper_nature", "wallpaper_mist_trees", "wallpaper_mist_valley",
             "wallpaper_snow", "wallpaper_aurora", "wallpaper_waterfall", "wallpaper_tokyo", "wallpaper_amsterdam",
             "wallpaper_nyhavn", "wallpaper_honfleur"};
-    // LOCAL CHANGE (7 Nov): the photos in res/drawable-nodpi are BAKED: already cropped to 1920x1080 and darkened at the top (clock),
-    // the bottom (apps) and overall, so the TV only decodes them. The crop and darkness per photo (the old PHOTO_BIAS, PHOTO_TOP,
-    // PHOTO_BOTTOM, PHOTO_DIM arrays) now live in tools/BakeWallpapers.java, which makes them from wallpaper-originals/.
-    // Each also has a 96 px picture for the wallpaper list: wallpaper_*_thumb.jpg.
-    private static final int[][] WALLPAPERS = {
-        {0xFF2C5C7C, 0xFF1C4A5C, 0xFF0C2A30, 0x6070B0D8, 0x604C8C6C},
+    // Per photo, colours for its list picture if the thumbnail can't be read: a gradient top to bottom, then a glow from
+    // the top left and one from the bottom right.
+    private static final int[][] PHOTO_COLOURS = {
+        {0xFF2C5C7C, 0xFF1C4A5C, 0xFF0C2A30, 0x6070B0D8, 0x604C8C6C}, // Mountains
         {0xFF6A5230, 0xFFB08040, 0xFF201810, 0xFFFFE0A0, 0xFF3A2C18}, // Misty Trees
         {0xFF5A7A3C, 0xFFE06830, 0xFF304028, 0xFFE8E4E0, 0xFF5A7A3C}, // Misty Valley
         {0xFF8FA6C8, 0xFFA8BCD8, 0xFF405070, 0xFFFFFFFF, 0xFF5870A0}, // Snow Peaks
@@ -202,31 +153,19 @@ public class MainActivity extends Activity {
         {0xFF4A4038, 0xFF4A4038, 0xFF2A3038, 0xFFC86040, 0xFF2A3038}, // Amsterdam
         {0xFF4A6A90, 0xFF4A6A90, 0xFF2A3A50, 0xFFFFA040, 0xFFD04838}, // Nyhavn
         {0xFF5080C0, 0xFF5080C0, 0xFF3A5A88, 0xFFF0F4FF, 0xFF6A5A48}, // Honfleur
-        {0xFF15100F, 0xFF0A0809, 0xFF050405, 0x36FF8048, 0x2EAA3C8C},
-        {0xFF0E1220, 0xFF080A13, 0xFF040509, 0x384A6CFF, 0x2E5A3CC8},
-        {0xFF170E19, 0xFF0C070D, 0xFF050306, 0x38C050B4, 0x2E6440D2},
-        {0xFF0C150F, 0xFF070C09, 0xFF030604, 0x3050B478, 0x28289682},
-        {0xFF151617, 0xFF0B0C0D, 0xFF050506, 0x1CFFFFFF, 0x16A0B4C8},
-        {0xFF0A1517, 0xFF060C0E, 0xFF030607, 0x3426B4C8, 0x2E2A64C0},
-        {0xFF190D08, 0xFF0D0605, 0xFF060303, 0x40FF5A24, 0x32C8283C},
-        {0xFF8C3A5E, 0xFF5E2348, 0xFF22101E, 0xA0FF8A4C, 0x80E0457A},
-        {0xFF14588E, 0xFF15366E, 0xFF0A1632, 0x9030C8E0, 0x807A4CE0},
-        {0xFF0F4048, 0xFF0F2E3A, 0xFF08141C, 0x9038E0A0, 0x90A050F0},
-        {0xFFC0604E, 0xFF8A3456, 0xFF2E1230, 0x90FFB070, 0x70E04090},
-        {0xFF5A3CAE, 0xFF3A2A84, 0xFF16123A, 0x90C080FF, 0x804A7CFF},
-        {0xFF2E6E4C, 0xFF1C4A40, 0xFF0A201E, 0x90A8E070, 0x6030A8A8},
-        {0xFFB07624, 0xFF86401E, 0xFF2A1410, 0x90FFD060, 0x70FF5040},
     };
+    // Upstream's dark "Dusk" gradient: the background when a photo can't be drawn.
+    private static final int[] DUSK = {0xFF15100F, 0xFF0A0809, 0xFF050405, 0x36FF8048, 0x2EAA3C8C};
     private float scale = 1f;
 
     private static Typeface regular, semibold;
 
     private FrameLayout root; // the page, inside a vertical scroller
     private int tileW, tileH, gridTop; // app grid geometry, set by buildTiles
-    private int rowStep;   // LOCAL CHANGE: distance between rows, tile height + ROW_GAP
-    private LinearLayout iconBar;                  // LOCAL CHANGE: bottom right: Play Store, Add app, Settings icons (the clock is on its own, top right)
+    private int rowStep;   // Distance between rows, tile height + ROW_GAP
+    private LinearLayout iconBar; // Bottom right: the Settings icon and any settings shortcuts (the clock is on its own, top right)
     private FrameLayout.LayoutParams iconBarLp;
-    private float tileK = 1f; // LOCAL CHANGE: how much smaller than upstream's 258 px tile the tiles are (1 = same size)
+    private float tileK = 1f; // How much smaller than upstream's 258 px tile the tiles are (1 = same size)
     private final List<View> tiles = new ArrayList<>();
     private final Map<View, ValueAnimator> lifts = new WeakHashMap<>(); // a running focus fade per tile
     private boolean dirty = true;
@@ -250,19 +189,6 @@ public class MainActivity extends Activity {
         }
     };
 
-    // The network tile follows the connection live: Wi-Fi bars, Ethernet or Offline. Only its icon and
-    // label change, so nothing is rebuilt.
-    private ImageView netIcon;
-    private int netState = -1;
-    private final ConnectivityManager.NetworkCallback networkChanged = new ConnectivityManager.NetworkCallback() {
-        @Override public void onAvailable(Network n) { runOnUiThread(MainActivity.this::refreshNetwork); }
-        @Override public void onLost(Network n) { runOnUiThread(MainActivity.this::refreshNetwork); }
-        // Also fires when the Wi-Fi signal gets stronger or weaker.
-        @Override public void onCapabilitiesChanged(Network n, NetworkCapabilities c) {
-            runOnUiThread(MainActivity.this::refreshNetwork);
-        }
-    };
-
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);
@@ -282,14 +208,14 @@ public class MainActivity extends Activity {
 
         LinearLayout clock = new LinearLayout(this);
         clock.setOrientation(LinearLayout.VERTICAL);
-        clock.setGravity(Gravity.END); // LOCAL CHANGE: date and time right-aligned
+        clock.setGravity(Gravity.END); // Date and time right-aligned
         shownLocale = java.util.Locale.getDefault();
         String day = Strings.datePattern();
-        TextClock date = clock(day, day, px(26), 0xA8FFFFFF, regular); // LOCAL CHANGE: was 30
+        TextClock date = clock(day, day, px(26), 0xA8FFFFFF, regular); // was 30
         // The clock follows the TV unless --es clock 12 or 24 says otherwise.
         String clockPref = prefs().getString(PREF_CLOCK, null);
         TextClock time = clock("24".equals(clockPref) ? "H:mm" : "h:mm", "12".equals(clockPref) ? "h:mm" : "H:mm",
-                px(88), Color.WHITE, semibold); // LOCAL CHANGE: was 176
+                px(88), Color.WHITE, semibold); // was 176
         time.setLetterSpacing(-0.028f);
         time.setFontFeatureSettings("tnum");
         time.setIncludeFontPadding(false);
@@ -297,12 +223,11 @@ public class MainActivity extends Activity {
         // or "0:00" to "9:59" (one digit less) cuts a long date off.
         clock.addView(date, new LinearLayout.LayoutParams(-2, -2));
         LinearLayout.LayoutParams tp = new LinearLayout.LayoutParams(-2, -2);
-        tp.topMargin = px(-8); // pull the digits up under the date (LOCAL CHANGE: was -20 for the bigger digits)
+        tp.topMargin = px(-8); // Pull the digits up under the date (was -20 for the bigger digits)
         clock.addView(time, tp);
-        // LOCAL CHANGE: the clock sits top right on its own (48 px from the top, EDGE from the right), as it did when it
-        // was the last child of a bar. buildTiles puts the Play Store, Add app and Settings icons in a separate bar at the
-        // bottom right, level with the bottom row of apps. That bar is added to the page by buildTiles, after the apps,
-        // so the first app keeps first focus.
+        // The clock sits top right on its own (48 px from the top, EDGE from the right). buildTiles puts the Settings icon
+        // (and any settings shortcuts) in a bar at the bottom right, level with the bottom row of apps. That bar is added to
+        // the page by buildTiles, after the apps, so the first app keeps first focus.
         FrameLayout.LayoutParams clockLp = new FrameLayout.LayoutParams(-2, -2, Gravity.TOP | Gravity.END);
         clockLp.topMargin = px(EDGE - 16);
         clockLp.rightMargin = px(EDGE);
@@ -319,7 +244,7 @@ public class MainActivity extends Activity {
         moveHint = text(px(24), 0xA8FFFFFF, regular);
         moveHint.setText(Strings.t("Use the arrows to move it, then press OK"));
         moveHint.setVisibility(View.GONE);
-        root.addView(moveHint, at(px(EDGE), px(ROW1_TOP - 64), -2, -2)); // LOCAL CHANGE: EDGE instead of MARGIN
+        root.addView(moveHint, at(px(EDGE), px(ROW1_TOP - 64), -2, -2));
 
         setContentView(scroller);
 
@@ -330,19 +255,11 @@ public class MainActivity extends Activity {
         f.addDataScheme("package");
         if (android.os.Build.VERSION.SDK_INT >= 33) registerReceiver(packagesChanged, f, Context.RECEIVER_EXPORTED);
         else registerReceiver(packagesChanged, f);
-
-        ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
-        if (cm != null) try {
-            if (android.os.Build.VERSION.SDK_INT >= 24) cm.registerDefaultNetworkCallback(networkChanged);
-            else cm.registerNetworkCallback(new NetworkRequest.Builder().build(), networkChanged);
-        } catch (Exception ignored) {}
     }
 
     @Override
     protected void onDestroy() {
         unregisterReceiver(packagesChanged);
-        ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
-        if (cm != null) try { cm.unregisterNetworkCallback(networkChanged); } catch (Exception ignored) {}
         super.onDestroy();
     }
 
@@ -366,8 +283,7 @@ public class MainActivity extends Activity {
         String apps = intent == null ? null : intent.getStringExtra("apps");
         String quick = intent == null ? null : intent.getStringExtra("quick");
         String clock = intent == null ? null : intent.getStringExtra("clock");
-        String fake = intent == null ? null : intent.getStringExtra("fakeinputs");
-        if (apps == null && quick == null && clock == null && fake == null) return false;
+        if (apps == null && quick == null && clock == null) return false;
         SharedPreferences prefs = getSharedPreferences(PREFS, 0);
         String stamp = intent.getStringExtra("stamp");
         if (stamp != null && stamp.equals(prefs.getString("stamp", null))) return false;
@@ -387,20 +303,6 @@ public class MainActivity extends Activity {
             clock = clock.trim();
             if (clock.isEmpty() || clock.equalsIgnoreCase("auto")) e.remove(PREF_CLOCK);
             else e.putString(PREF_CLOCK, clock);
-        }
-        // Set only by install.sh's FAKE_INPUT=1, which also installs the throwaway input itself.
-        // It is for an emulator, which has no HDMI ports, and never for a real TV.
-        if (fake != null) {
-            if (fake.trim().equals("1")) {
-                e.putString(PREF_FAKE_INPUTS, "1");
-                // An input taken off the home screen stays off, even when FAKE_INPUT=1 adds it back
-                // (undo.sh uninstalls it, but running install.sh again does not). Left alone, the
-                // emulator would come back with no input tile at all, so put the test input back.
-                Set<String> hidden = hiddenInputs();
-                for (java.util.Iterator<String> it = hidden.iterator(); it.hasNext(); )
-                    if (it.next().startsWith(FAKE_INPUT_PKG + "/")) it.remove();
-                e.putString(PREF_HIDDEN_INPUTS, android.text.TextUtils.join("\n", new TreeSet<>(hidden)));
-            } else e.remove(PREF_FAKE_INPUTS);
         }
         e.apply();
         dirty = true;
@@ -436,11 +338,10 @@ public class MainActivity extends Activity {
             dirty = false;
             buildTiles();
         }
-        refreshNetwork();
         View f = getCurrentFocus();
         if (f == null && !tiles.isEmpty()) tiles.get(0).requestFocus();
         HomeButton.onHomeResumed(this); // back on this home screen: Home comes here again
-        HomeButton.setHomeVisible(true); // LOCAL CHANGE: lets the Home button service see whether this home is in front
+        HomeButton.setHomeVisible(true); // Lets the Home button service see whether this home is in front
         // Only counted as opened once it has stayed up a moment, so a crash right after opening still
         // counts as a failed launch.
         getWindow().getDecorView().postDelayed(homeOk, 1500);
@@ -454,7 +355,7 @@ public class MainActivity extends Activity {
         // Left normally (an app or Settings opened), so it didn't crash.
         getWindow().getDecorView().removeCallbacks(homeOk);
         HomeButton.onHomeOk(this);
-        HomeButton.setHomeVisible(false); // LOCAL CHANGE: see onResume
+        HomeButton.setHomeVisible(false); // see onResume
     }
 
     // Back from a menu or a window on top (like the uninstall prompt): catch up on apps that changed.
@@ -536,18 +437,17 @@ public class MainActivity extends Activity {
         }
     }
 
-    // The saved wallpaper, as an index into WALLPAPERS (Dusk if none is saved).
+    // The saved wallpaper, as an index into WALLPAPER_NAMES (Mountains if none is saved).
     private int wallpaper() {
         String saved = getSharedPreferences(PREFS, 0).getString("wallpaper", null);
         return Math.max(0, Arrays.asList(WALLPAPER_NAMES).indexOf(saved));
     }
 
-    private Drawable photoBg; // LOCAL CHANGE: the photo, drawn once and kept while it is the wallpaper
+    private Drawable photoBg; // The photo, drawn once and kept while it is the wallpaper
     private int photoIndex = -1; // and which photo that is
 
-    // LOCAL CHANGE: drawing a photo wallpaper takes about a second on this beamer (full-size JPEG decode). Done in the focus
-    // listener of the wallpaper list that froze the whole screen for that second at every step, and with a real remote the
-    // presses that queued up in the meantime moved the highlight past the wanted entry (Misty Trees jumped to Misty Valley).
+    // Decoding a full-size photo can take a noticeable moment on a slow TV. Done in the focus listener of the wallpaper list,
+    // that froze the screen at every step, and presses that queued up meanwhile moved the highlight past the wanted entry.
     // So the list's preview only starts the decode on a worker thread once the highlight has rested for 200 ms, and a result
     // that arrives after the highlight moved on is dropped. Saving (OK), Back and starting up still use showWallpaper() below.
     private volatile int wallpaperRequest; // bumped on every change; an async result is only used while it is still the latest
@@ -556,7 +456,7 @@ public class MainActivity extends Activity {
 
     private void previewWallpaper(final int i) {
         final int req = ++wallpaperRequest;
-        if (i >= PHOTO_COUNT || (photoBg != null && photoIndex == i)) { // a gradient, or the photo already on screen: instant
+        if (photoBg != null && photoIndex == i) { // The photo already on screen: instant
             showWallpaper(i);
             return;
         }
@@ -574,39 +474,30 @@ public class MainActivity extends Activity {
                 photoBg = null; // let go of the previous photo first, so two never sit in memory together
                 photoBg = d;
                 photoIndex = i;
-                getWindow().setBackgroundDrawable(d != null ? d : background(WALLPAPERS[PHOTO_COUNT]));
+                getWindow().setBackgroundDrawable(d != null ? d : background(DUSK));
             });
         }, 200);
     }
 
     private void showWallpaper(int i) {
-        wallpaperRequest++; // LOCAL CHANGE: whatever a worker is still drawing is out of date now
-        // LOCAL CHANGE: the photo wallpapers; if one can't be drawn for any reason, fall back to Dusk's gradient.
-        Drawable d = null;
-        boolean photo = i < PHOTO_COUNT;
-        if (photo) {
-            if (photoBg == null || photoIndex != i) {
-                photoBg = null; // let go of the previous photo first, so two never sit in memory together
-                photoBg = photoBackground(i);
-                photoIndex = i;
-            }
-            d = photoBg;
-        } else {
-            photoBg = null; // let go of the picture's memory once a gradient is chosen
-            photoIndex = -1;
+        wallpaperRequest++; // Whatever a worker is still drawing is out of date now
+        if (photoBg == null || photoIndex != i) {
+            photoBg = null; // Let go of the previous photo first, so two never sit in memory together
+            photoBg = photoBackground(i);
+            photoIndex = i;
         }
-        getWindow().setBackgroundDrawable(d != null ? d : background(WALLPAPERS[photo ? PHOTO_COUNT : i]));
+        // If the photo can't be drawn for any reason, fall back to the Dusk gradient.
+        getWindow().setBackgroundDrawable(photoBg != null ? photoBg : background(DUSK));
     }
 
-    // LOCAL CHANGE: the baked photo (see PHOTO_RES): decoded straight into GPU memory on Android 8+, so a focus move costs nothing
-    // extra and the home screen uses no more memory than with a gradient. It used to be cropped, darkened and copied here at every
-    // choice (~240 ms, Misty Trees 740 ms). Null if anything fails.
+    // The baked photo (see PHOTO_RES): decoded straight into GPU memory on Android 8+, so a focus move costs nothing
+    // extra and the home screen uses no more memory than with a gradient. Null if anything fails.
     private Drawable photoBackground(int p) {
         try {
-            final long t0 = android.os.SystemClock.uptimeMillis(); // LOCAL CHANGE: timed, to see which photo is slow
+            final long t0 = android.os.SystemClock.uptimeMillis(); // Timed, to see which photo is slow (logcat TvHomePhoto)
             int id = getResources().getIdentifier(PHOTO_RES[p], "drawable", getPackageName());
             if (id == 0) {
-                android.util.Log.w("TvHomePhoto", PHOTO_RES[p] + ": resource not found"); // LOCAL CHANGE: a failure was silent (fell back to Dusk)
+                android.util.Log.w("TvHomePhoto", PHOTO_RES[p] + ": resource not found");
                 return null;
             }
             BitmapFactory.Options o = new BitmapFactory.Options();
@@ -635,8 +526,7 @@ public class MainActivity extends Activity {
     // behind the menu; OK keeps it, Back goes back to the one before.
     private void showWallpapers() {
         final int size = px(40);
-        // LOCAL CHANGE: the same small glass menu as the Settings menu and Add app (it scrolls: 24 entries), no longer a side
-        // panel. Each name has a rounded 40 px picture like the app icons in Add app: the photo itself, or the colours of a gradient.
+        // The same small glass menu as the Settings menu and Add app. Each name has a rounded 40 px picture of the photo.
         dropdown(tile(SETTINGS), WALLPAPER_NAMES, wallpaper(), this::previewWallpaper, pos -> wallpaperThumb(pos, size), size, which -> {
             getSharedPreferences(PREFS, 0).edit().putString("wallpaper", WALLPAPER_NAMES[which]).apply();
             showWallpaper(which);
@@ -645,15 +535,14 @@ public class MainActivity extends Activity {
 
     private final Drawable[] wallpaperThumbs = new Drawable[WALLPAPER_NAMES.length]; // made on first use, a few KB each
 
-    // LOCAL CHANGE: the picker's picture of wallpaper p: a rounded square. A photo is shown as the photo (centre square, decoded
-    // at a fraction of its size so ten of them cost next to nothing); a gradient as its colours, glows made stronger so the dark
-    // ones can be told apart (as the old dots did). A photo that can't be read falls back to the colours in its WALLPAPERS row.
+    // The picker's picture of wallpaper p: a rounded square of the photo (its small ready-made thumbnail). If that can't be
+    // read, its PHOTO_COLOURS as a gradient instead, glows made stronger so the dark ones can be told apart.
     private Drawable wallpaperThumb(int p, int size) {
         if (wallpaperThumbs[p] != null) return wallpaperThumbs[p];
         float corner = px(8);
         int edge = Math.max(1, px(2));
         Drawable d = null;
-        Bitmap photo = p < PHOTO_COUNT ? photoThumb(p, size) : null;
+        Bitmap photo = photoThumb(p, size);
         if (photo != null) {
             Bitmap bm = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
             Canvas cv = new Canvas(bm);
@@ -669,7 +558,7 @@ public class MainActivity extends Activity {
             d = new BitmapDrawable(getResources(), bm);
         }
         if (d == null) {
-            int[] c = WALLPAPERS[p];
+            int[] c = PHOTO_COLOURS[p];
             GradientDrawable g = new GradientDrawable(GradientDrawable.Orientation.TL_BR,
                     new int[] {glow(c[3], c[0]), c[1], glow(c[4], c[0])});
             g.setCornerRadius(corner);
@@ -681,7 +570,7 @@ public class MainActivity extends Activity {
         return d;
     }
 
-    // LOCAL CHANGE: the list picture of photo p, size x size px: the small ready-made square wallpaper_*_thumb.jpg (96 px, the
+    // The list picture of photo p, size x size px: the small ready-made square wallpaper_*_thumb.webp (96 px, the
     // middle of the untouched photo, made by tools/BakeWallpapers.java), scaled down. Null if anything fails.
     private Bitmap photoThumb(int p, int size) {
         try {
@@ -728,16 +617,16 @@ public class MainActivity extends Activity {
             ((ViewGroup) wrap.getParent()).removeView(wrap);
         }
         tiles.clear();
-        root.removeView(iconBar); // LOCAL CHANGE: re-added at the end, so it comes after the apps in focus order
+        root.removeView(iconBar); // Re-added at the end, so it comes after the apps in focus order
         rowApps.clear();
         movingKey = null;
         moveHint.setVisibility(View.GONE);
 
         PackageManager pm = getPackageManager();
-        final int style = tileStyle(); // LOCAL CHANGE: how the app tiles look (see TILE_STYLES)
+        final int style = tileStyle(); // How the app tiles look (see TILE_STYLES)
         int m = px(MARGIN), g = px(GAP);
-        int w = px(TILE_W); // LOCAL CHANGE: fixed tile width instead of filling the screen width
-        // LOCAL CHANGE: the two text styles have no banner to show, so their blocks are half as tall and sit closer together.
+        int w = px(TILE_W); // Fixed tile width instead of filling the screen width
+        // The two text styles have no banner to show, so their blocks are half as tall and sit closer together.
         final boolean textStyle = style == STYLE_TEXT || style == STYLE_PLAIN;
         int h = textStyle ? w * 9 / 32 : w * 9 / 16;
         tileW = w;
@@ -752,7 +641,7 @@ public class MainActivity extends Activity {
         int launchable = 0;
         for (String pkg : apps) if (launchIntent(pm, pkg) != null) launchable++;
         int rows = Math.max(1, (launchable + perRow() - 1) / perRow());
-        // LOCAL CHANGE: the apps sit in the bottom left corner: the last row ends EDGE above the bottom of the
+        // The apps sit in the bottom left corner: the last row ends EDGE above the bottom of the
         // screen, and more rows grow upwards (up to GRID_MIN_TOP; past that the page scrolls).
         int screenH = getResources().getDisplayMetrics().heightPixels;
         gridTop = Math.max(px(GRID_MIN_TOP), screenH - px(EDGE) - h - (rows - 1) * rowStep);
@@ -768,7 +657,7 @@ public class MainActivity extends Activity {
                 banner = pm.getActivityBanner(li);
                 if (banner == null) banner = pm.getApplicationBanner(pkg);
             } catch (Exception ignored) {}
-            // LOCAL CHANGE: the two text styles ignore the banners: just the name, no icon
+            // The two text styles ignore the banners: just the name, no icon
             if (textStyle) banner = null;
             String label = pkg;
             try { label = pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString(); } catch (Exception ignored) {}
@@ -781,15 +670,11 @@ public class MainActivity extends Activity {
             addTile(root, pkg, label, banner, null, icon, gridX(i), gridY(i), w, h);
         }
 
-        // LOCAL CHANGE: no bottom row of tiles, no HDMI tile and no network icon. Settings is a plain icon in a bar at the
-        // bottom right, level with the bottom row of apps (then any settings shortcuts picked with --es quick). Add app and
-        // Play Store are entries of the Settings menu now (see open()). To get an HDMI tile back, restore the upstream code
-        // that listed hdmiInputs() here.
+        // Settings is a plain icon in a bar at the bottom right, level with the bottom row of apps, followed by any settings
+        // shortcuts picked with --es quick. (Upstream's HDMI and network tiles are not part of this home screen.)
         addIcon(SETTINGS, Strings.t("Settings"), new LineIcon(LineIcon.SETTINGS), 0);
         for (int q : quickList())
             addIcon(QUICK + QUICK_NAMES[q], Strings.t(QUICK_LABELS[q]), new LineIcon(QUICK_ICONS[q]), 0);
-        netIcon = null; // no network icon any more; refreshNetwork() does nothing without it
-        netState = -1;
         // The bar goes in last, so the first app keeps first focus; Right from the last app of a row reaches the icons.
         // Its centre is the centre of the bottom row of apps (the bottom row ends EDGE above the screen's bottom edge).
         iconBarLp.bottomMargin = px(EDGE) + (h - px(ICON_BUTTON)) / 2;
@@ -798,7 +683,7 @@ public class MainActivity extends Activity {
         root.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
         // An app that was uninstalled hands focus to the one now in its place, as Remove does.
         if (wantAt >= 0 && !rowApps.contains(want))
-            want = rowApps.isEmpty() ? SETTINGS : rowApps.get(Math.min(wantAt, rowApps.size() - 1)); // LOCAL CHANGE: no Add tile any more
+            want = rowApps.isEmpty() ? SETTINGS : rowApps.get(Math.min(wantAt, rowApps.size() - 1)); // No Add tile any more
         View restore = null;
         for (View t : tiles) if (t.getTag().equals(want)) restore = t;
         if (restore != null) restore.requestFocus();
@@ -809,10 +694,10 @@ public class MainActivity extends Activity {
         FrameLayout card = new FrameLayout(this);
         final GradientDrawable bg = new GradientDrawable();
         bg.setCornerRadius(px(RADIUS));
-        final int st = tileStyle(); // LOCAL CHANGE: see TILE_STYLES
+        final int st = tileStyle(); // see TILE_STYLES
         final boolean textOnly = banner == null && (st == STYLE_TEXT || st == STYLE_PLAIN); // just the name, no icon
         final boolean plain = banner == null && st == STYLE_PLAIN; // and no tile until it is focused
-        // LOCAL CHANGE: in the filtered styles the banner is drawn through a colour matrix until the tile is focused.
+        // In the filtered styles the banner is drawn through a colour matrix until the tile is focused.
         final float[] rest = banner != null ? restLook(st) : null;
         final ImageView bannerView;
         if (banner != null) {
@@ -825,14 +710,14 @@ public class MainActivity extends Activity {
         } else {
             bannerView = null;
             // Quiet "glass" tile: icon above label.
-            // LOCAL CHANGE: the text styles have no icon: just the name, in a glass tile (Text on glass) or on nothing (Text only,
+            // The text styles have no icon: just the name, in a glass tile (Text on glass) or on nothing (Text only,
             // where the glass only shows while the tile is focused).
             bg.setColor(plain ? 0x00FFFFFF : 0x13FFFFFF);
             if (!plain) bg.setStroke(Math.max(1, px(2)), 0x17FFFFFF);
             LinearLayout inner = new LinearLayout(this);
             inner.setOrientation(LinearLayout.VERTICAL);
             inner.setGravity(Gravity.CENTER);
-            // LOCAL CHANGE: the inside of a glass tile shrinks with the tile (but keeps the text readable).
+            // The inside of a glass tile shrinks with the tile (but keeps the text readable).
             float ki = Math.max(tileK, 0.7f), kt = Math.max(tileK, 0.8f);
             int size = Math.round((lineIcon != null ? px(44) : px(64)) * ki);
             if (!textOnly) {
@@ -858,42 +743,18 @@ public class MainActivity extends Activity {
         card.setFocusable(true);
         card.setTag(key);
 
-        // LOCAL CHANGE: no name underneath a focused banner tile (upstream: banner == null ? null : text(px(24), Color.WHITE, regular)).
-        // All uses below check for null, so this alone switches the caption off. Put the upstream expression back to restore it,
-        // and set ROW_GAP back to 79 so the caption has room again.
-        final TextView caption = null;
-        if (caption != null) {
-            caption.setText(label);
-            caption.setGravity(Gravity.CENTER_HORIZONTAL);
-            caption.setVisibility(View.INVISIBLE);
-        }
-
         final boolean glass = banner == null;
         card.setOnFocusChangeListener((v, has) -> {
             if (has) focusedKey = key;
             lift(v, bg, has, glass ? (plain ? 0x00FFFFFF : 0x13FFFFFF) : 0xFF1E1A1C, glass ? 0x38FFFFFF : 0xFF1E1A1C,
                     px(RADIUS), px(RADIUS + RADIUS_UP));
             if (bannerView != null) fadeLook(bannerView, rest, has);
-            if (caption != null) {
-                caption.animate().cancel();
-                if (has) {
-                    caption.setVisibility(View.VISIBLE);
-                    caption.setAlpha(0f);
-                    caption.animate().alpha(1f).setDuration(FOCUS_MS).setInterpolator(FOCUS_EASE).start();
-                } else {
-                    caption.animate().alpha(0f).setDuration(FOCUS_MS / 2).withEndAction(
-                            () -> caption.setVisibility(View.INVISIBLE)).start();
-                }
-            }
         });
         final boolean editable = rowApps.contains(key);
         card.setOnClickListener(v -> open(key));
         if (editable) card.setOnLongClickListener(v -> { showEditMenu(key); return true; });
-        // What a long OK (or Menu) on this tile opens: the app row's menu, an input's menu, or, on
-        // the + tile, the inputs taken off the home screen.
-        final Runnable menu = editable ? () -> showEditMenu(key)
-                : isInput(key) ? () -> showInputMenu(key)
-                : ADD.equals(key) && !hiddenInputs().isEmpty() ? this::showHiddenInputs : null;
+        // What a long OK (or Menu) on this tile opens: the app's menu (move, replace, remove).
+        final Runnable menu = editable ? () -> showEditMenu(key) : null;
         card.setOnKeyListener((v, code, ev) -> {
             boolean ok = code == KeyEvent.KEYCODE_DPAD_CENTER || code == KeyEvent.KEYCODE_ENTER
                     || code == KeyEvent.KEYCODE_NUMPAD_ENTER;
@@ -926,11 +787,6 @@ public class MainActivity extends Activity {
         FrameLayout wrap = new FrameLayout(this);
         wrap.setClipChildren(false);
         wrap.addView(card, new FrameLayout.LayoutParams(w, h));
-        if (caption != null) {
-            FrameLayout.LayoutParams cp = new FrameLayout.LayoutParams(w, -2);
-            cp.topMargin = h + px(22);
-            wrap.addView(caption, cp);
-        }
         parent.addView(wrap, at(x, y, w, -2));
         tiles.add(card);
     }
@@ -982,9 +838,9 @@ public class MainActivity extends Activity {
         return Math.round(a + (b - a) * t);
     }
 
-    // LOCAL CHANGE: tile styles ---------------------------------------------------------------------------------------
+    // Tile styles ---------------------------------------------------------------------------------------
 
-    // The style in use: the saved one, unless the panel is previewing another.
+    // The style in use: the saved one, unless the menu is previewing another.
     private int tileStyle() {
         if (tileStyle < 0) {
             SharedPreferences p = getSharedPreferences(PREFS, 0);
@@ -1002,12 +858,12 @@ public class MainActivity extends Activity {
         return tileStyle;
     }
 
-    // The style names, one row each. Moving through them rebuilds the tiles behind the panel (the panel's
+    // The style names, one row each. Moving through them rebuilds the tiles behind the menu (the menu's
     // preview callback); OK saves the one shown, Back goes back to the one before.
     private void showTileStyles() {
         List<String> names = new ArrayList<>();
         for (String s : TILE_STYLES) names.add(Strings.t(s));
-        // LOCAL CHANGE: the same small glass menu as the Settings menu, no longer a side panel
+        // The same small glass menu as the Settings menu, no longer a side panel
         dropdown(tile(SETTINGS), names.toArray(new String[0]), tileStyle(), this::previewTileStyle, null, 0, which -> {
             getSharedPreferences(PREFS, 0).edit().putString("tile_look", TILE_STYLES[which]).apply();
             previewTileStyle(which);
@@ -1020,9 +876,9 @@ public class MainActivity extends Activity {
         buildTiles();
     }
 
-    // LOCAL CHANGE: apps per row, PER_ROW_MIN..PER_ROW_MAX, as the same small glass menu as the Settings menu (it opens in
+    // Apps per row, PER_ROW_MIN..PER_ROW_MAX, as the same small glass menu as the Settings menu (it opens in
     // its place). Live preview: moving through the list re-lays the apps, OK saves the number shown (pref "per_row"),
-    // Back goes back to the one before. (It was a wide side panel first; the user found that a different style.)
+    // Back goes back to the one before. 
     private void showPerRow() {
         String[] items = new String[PER_ROW_MAX - PER_ROW_MIN + 1];
         for (int n = PER_ROW_MIN; n <= PER_ROW_MAX; n++)
@@ -1108,7 +964,7 @@ public class MainActivity extends Activity {
         FrameLayout wrap = new FrameLayout(this);
         wrap.setClipChildren(false);
         wrap.addView(card, new FrameLayout.LayoutParams(b, b));
-        // LOCAL CHANGE: icons go into the bar at the bottom right, one after the other, not at a fixed x.
+        // Icons go into the bar at the bottom right, one after the other, not at a fixed x.
         LinearLayout.LayoutParams ilp = new LinearLayout.LayoutParams(b, b);
         ilp.leftMargin = iconBar.getChildCount() == 0 ? 0 : px(ICON_GAP);
         iconBar.addView(wrap, ilp);
@@ -1117,10 +973,10 @@ public class MainActivity extends Activity {
     }
 
     // The Settings icon's menu, starting on focusItem (an entry of SETTINGS_ITEMS) or on the first entry for null.
-    // LOCAL CHANGE: split out of open() so the pages of this menu can come back to it with Back (see backToSettings).
+    // Split out of open() so the pages of this menu can come back to it with Back (see backToSettings).
     private void showSettingsMenu(String focusItem) {
         List<String> list = new ArrayList<>(Arrays.asList(SETTINGS_ITEMS));
-        // LOCAL CHANGE: Play Store only when it is installed and not already one of the apps on the home screen.
+        // Play Store only when it is installed and not already one of the apps on the home screen.
         if (rowApps.contains(PLAY_STORE) || launchIntent(getPackageManager(), PLAY_STORE) == null) list.remove("Play Store");
         if (!remoteButtonsInstalled()) list.remove("Remote buttons");
         final String[] items = list.toArray(new String[0]);
@@ -1148,7 +1004,7 @@ public class MainActivity extends Activity {
         } catch (Exception ignored) {}
     }
 
-    // LOCAL CHANGE: Back in one of the pages of the Settings menu (Wallpaper, Tile style, Apps per row, Add app) goes back to the
+    // Back in one of the pages of the Settings menu (Wallpaper, Tile style, Apps per row, Add app) goes back to the
     // Settings menu, on the entry it was opened from, instead of closing everything. Backing out of a page that previews live
     // (Tile style, Apps per row) puts the old look back, which rebuilds the tiles; the menu waits until the Settings icon has its
     // place again, or it would open at the wrong spot.
@@ -1168,59 +1024,17 @@ public class MainActivity extends Activity {
     }
 
     private void open(String key) {
-        Intent i;
-        if (ADD.equals(key)) {
-            showAddMenu(-1);
-            return;
-        } else if (SETTINGS.equals(key)) {
+        if (SETTINGS.equals(key)) {
             showSettingsMenu(null);
-            return;
-        } else if (isInput(key)) {
-            openInput(key);
-            return;
-        } else if (NETWORK.equals(key)) {
-            openNetworkSettings();
             return;
         } else if (key.startsWith(QUICK)) {
             openQuick(key.substring(QUICK.length()));
             return;
-        } else {
-            i = launchIntent(getPackageManager(), key);
-            if (i == null) return;
         }
+        Intent i = launchIntent(getPackageManager(), key);
+        if (i == null) return;
         i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         try { startActivity(i); } catch (Exception ignored) {}
-    }
-
-    // Live TV apps an HDMI tile can open, in order. Droidlogic (Amlogic) TVs ship Live TV under their
-    // own package, with TvActivity as its entry point.
-    private static final String[][] LIVE_TV = {{"com.android.tv", "com.android.tv.MainActivity"},
-            {"com.droidlogic.android.tv", "com.android.tv.TvActivity"}};
-    private static final String INPUT_PLAYER = "com.google.android.tv.inputplayer";
-
-    // Opens an HDMI input: the stock Live TV app first, then Droidlogic's, then whatever the TV picks.
-    // Each one is tried only when the one before it can't start, so a TV where the stock app already
-    // worked takes exactly the same path as before. The one exception: when the TV itself sends HDMI to
-    // Google TV's input player, that goes first, because some Google TVs ship com.android.tv as a stub
-    // that starts fine but only says "Hello World!" (issue #5).
-    private void openInput(String id) {
-        Intent view = new Intent(Intent.ACTION_VIEW, TvContract.buildChannelUriForPassthroughInput(id));
-        List<Intent> tries = new ArrayList<>();
-        ResolveInfo def = getPackageManager().resolveActivity(view, PackageManager.MATCH_DEFAULT_ONLY);
-        if (def != null && def.activityInfo != null && INPUT_PLAYER.equals(def.activityInfo.packageName))
-            tries.add(new Intent(view).setClassName(INPUT_PLAYER, def.activityInfo.name));
-        for (String[] live : LIVE_TV) {
-            Intent t = new Intent(view).setClassName(live[0], live[1]);
-            if (t.resolveActivity(getPackageManager()) != null) tries.add(t);
-        }
-        tries.add(view);
-        for (Intent t : tries) {
-            t.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            try {
-                startActivity(t);
-                return;
-            } catch (Exception ignored) {}
-        }
     }
 
     // The shortcuts picked with --es quick, in that order, as indexes into QUICK_NAMES. A shortcut
@@ -1235,62 +1049,6 @@ public class MainActivity extends Activity {
             out.add(q);
         }
         return out;
-    }
-
-    // OFFLINE, 1 to 3 for Wi-Fi with that many bars, or ETHERNET (any other link, which on a TV is a cable).
-    private int networkState() {
-        ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
-        if (cm == null) return OFFLINE;
-        try {
-            int rssi = Integer.MIN_VALUE;
-            if (android.os.Build.VERSION.SDK_INT >= 23) {
-                NetworkCapabilities c = cm.getNetworkCapabilities(cm.getActiveNetwork());
-                if (c == null) return OFFLINE;
-                if (!c.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) return ETHERNET;
-                if (android.os.Build.VERSION.SDK_INT >= 29) rssi = c.getSignalStrength();
-            } else {
-                android.net.NetworkInfo ni = cm.getActiveNetworkInfo();
-                if (ni == null || !ni.isConnected()) return OFFLINE;
-                if (ni.getType() != ConnectivityManager.TYPE_WIFI) return ETHERNET;
-            }
-            if (rssi == Integer.MIN_VALUE) { // Android 9 and older: ask the Wi-Fi service
-                WifiManager wm = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
-                if (wm != null && wm.getConnectionInfo() != null) rssi = wm.getConnectionInfo().getRssi();
-            }
-            return 1 + WifiManager.calculateSignalLevel(rssi, 3);
-        } catch (Exception e) {
-            return OFFLINE;
-        }
-    }
-
-    private void refreshNetwork() {
-        if (netIcon == null) return;
-        int state = networkState();
-        if (state == netState) return;
-        netState = state;
-        if (state == ETHERNET) {
-            netIcon.setImageDrawable(new LineIcon(LineIcon.ETHERNET));
-        } else {
-            // The whole Wi-Fi fan dim, with the bars it has bright on top. Offline is a slash instead.
-            LineIcon fan = new LineIcon(LineIcon.WIFI);
-            fan.setAlpha(0x47);
-            int[] top = state == OFFLINE ? LineIcon.SLASH : state == 1 ? LineIcon.WIFI_1
-                    : state == 2 ? LineIcon.WIFI_2 : LineIcon.WIFI;
-            netIcon.setImageDrawable(new LayerDrawable(new Drawable[] {fan, new LineIcon(top)}));
-        }
-        ((View) netIcon.getParent()).setContentDescription(
-                state == OFFLINE ? Strings.t("Offline") : state == ETHERNET ? "Ethernet" : "Wi-Fi");
-    }
-
-    // Wi-Fi settings (on Android TV that page lists Ethernet too), else the TV's network page, else Settings.
-    private void openNetworkSettings() {
-        for (String a : new String[] {Settings.ACTION_WIFI_SETTINGS, Settings.ACTION_WIRELESS_SETTINGS,
-                Settings.ACTION_SETTINGS}) {
-            try {
-                startActivity(new Intent(a).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
-                return;
-            } catch (Exception ignored) {}
-        }
     }
 
     // Screens a shortcut can open, best first, keeping only those this TV has.
@@ -1331,21 +1089,6 @@ public class MainActivity extends Activity {
         return false;
     }
 
-    // The TV's own picture screen, where brightness lives: the Picture shortcut's screens first (TCL's
-    // panel, then Android's Display page), then Android TV's Display & Sound page, else TV settings.
-    // Only system screens are started, so it needs no permission and changes nothing by itself.
-    private void openBrightness() {
-        if (openQuick("picture")) return;
-        Intent i = new Intent().setClassName(TV_DISPLAY_SOUND[0], TV_DISPLAY_SOUND[1]);
-        if (i.resolveActivity(getPackageManager()) != null) {
-            try {
-                startActivity(i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
-                return;
-            } catch (Exception ignored) {}
-        }
-        openTvSettings();
-    }
-
     private void openTvSettings() {
         try { startActivity(new Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); }
         catch (Exception ignored) {}
@@ -1353,87 +1096,6 @@ public class MainActivity extends Activity {
 
     interface Pick { void at(int which); }
     interface Icon { Drawable at(int which) throws Exception; }
-
-    private void panel(String title, List<String> labels, Pick pick) {
-        panel(title, labels, null, 0, -1, null, pick);
-    }
-
-    // A side panel in the home screen's own look: a title, then one row per choice, with the same
-    // glass focus as the tiles. Back closes it. icon (or null) puts an icon of that size by each name.
-    // With preview, the list starts on selected and moving through it calls preview; Back calls it
-    // with selected again, to put things back.
-    private void panel(String title, final List<String> labels, final Icon icon, final int size,
-                       final int selected, final Pick preview, final Pick pick) {
-        final Dialog d = new Dialog(this, android.R.style.Theme_Material_Dialog_NoActionBar);
-        LinearLayout box = new LinearLayout(this);
-        box.setOrientation(LinearLayout.VERTICAL);
-        box.setPadding(px(48), px(92), px(48), px(48));
-
-        TextView head = text(px(40), Color.WHITE, semibold);
-        head.setText(title);
-        head.setSingleLine(true);
-        head.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        head.setPadding(px(24), 0, px(24), 0);
-        box.addView(head);
-
-        ListView list = new ListView(this);
-        list.setDivider(null);
-        list.setVerticalScrollBarEnabled(false);
-        list.setOverScrollMode(View.OVER_SCROLL_NEVER);
-        GradientDrawable focus = new GradientDrawable();
-        focus.setCornerRadius(px(RADIUS));
-        focus.setColor(0x38FFFFFF);
-        list.setSelector(focus);
-        // Icons load as rows appear, drawn small to save RAM.
-        final Drawable[] icons = new Drawable[labels.size()];
-        list.setAdapter(new BaseAdapter() {
-            @Override public int getCount() { return labels.size(); }
-            @Override public Object getItem(int pos) { return labels.get(pos); }
-            @Override public long getItemId(int pos) { return pos; }
-            @Override public View getView(int pos, View convert, ViewGroup parent) {
-                TextView t = convert != null ? (TextView) convert : text(px(30), 0xE6FFFFFF, regular);
-                t.setText(labels.get(pos));
-                t.setSingleLine(true);
-                t.setEllipsize(android.text.TextUtils.TruncateAt.END);
-                t.setGravity(Gravity.CENTER_VERTICAL);
-                t.setMinHeight(px(88));
-                t.setPadding(px(24), 0, px(24), 0);
-                if (icon != null && icons[pos] == null) {
-                    try { icons[pos] = icon.at(pos); }
-                    catch (Exception e) { icons[pos] = new ColorDrawable(Color.TRANSPARENT); }
-                    icons[pos].setBounds(0, 0, size, size);
-                }
-                t.setCompoundDrawablesRelative(icons[pos], null, null, null);
-                t.setCompoundDrawablePadding(px(24));
-                return t;
-            }
-        });
-        list.setOnItemClickListener((parent, v, pos, id) -> {
-            d.dismiss();
-            pick.at(pos);
-        });
-        if (preview != null) {
-            list.setSelection(selected);
-            list.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
-                @Override public void onItemSelected(android.widget.AdapterView<?> p, View v, int pos, long id) {
-                    preview.at(pos);
-                }
-                @Override public void onNothingSelected(android.widget.AdapterView<?> p) {}
-            });
-            d.setOnCancelListener(x -> preview.at(selected));
-        }
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, 0, 1f);
-        lp.topMargin = px(36);
-        box.addView(list, lp);
-
-        d.setContentView(box);
-        Window w = d.getWindow();
-        w.setBackgroundDrawable(new ColorDrawable(preview != null ? 0xFF161113 : 0xF7161113));
-        w.setLayout(px(640), -1);
-        w.setGravity(Gravity.END);
-        w.setDimAmount(preview != null ? 0f : 0.5f); // a preview needs the home screen undimmed
-        d.show();
-    }
 
     // A small menu that drops down under a tile, in the same glass as the tiles. Opens above the
     // tile when there's no room below. Back closes it.
@@ -1446,11 +1108,11 @@ public class MainActivity extends Activity {
         dropdown(anchor, items, selected, preview, icon, iconSize, pick, null);
     }
 
-    // LOCAL CHANGE: with a preview, the list starts on item `selected`, focusing an item calls preview with it, and Back calls
-    // it with `selected` again, to put things back (the same contract as panel()). With icon (or null), each item gets an icon
+    // With a preview, the list starts on item `selected`, focusing an item calls preview with it, and Back calls
+    // it with `selected` again, to put things back. With icon (or null), each item gets an icon
     // of iconSize px. A list taller than the room on screen scrolls inside the menu. Used by the Settings menu's own pages
     // (Wallpaper, Tile style, Apps per row), so they all look like the Settings menu.
-    // LOCAL CHANGE: back (or null) runs after Back (not after a pick), once the preview has been put back: a page of the
+    // Back (or null) runs after Back (not after a pick), once the preview has been put back: a page of the
     // Settings menu uses it to return to the Settings menu instead of closing everything.
     private void dropdown(View anchor, String[] items, final int selected, final Pick preview, final Icon icon,
                           final int iconSize, final Pick pick, final Runnable back) {
@@ -1518,10 +1180,10 @@ public class MainActivity extends Activity {
         int tileBottom = at[1] + Math.round(anchor.getHeight() * anchor.getScaleY());
         int w = Math.max(Math.max(Math.round(anchor.getWidth() * anchor.getScaleX()), px(320)), (int) Math.ceil(widest));
         int h = items.length * rowH + 2 * pad;
-        int y = tileBottom + (anchor.getHeight() < px(100) ? px(12) : px(64)); // LOCAL CHANGE: an icon has no name underneath, so less gap
+        int y = tileBottom + (anchor.getHeight() < px(100) ? px(12) : px(64)); // An icon has no name underneath, so less gap
         int roomBelow = getResources().getDisplayMetrics().heightPixels - px(24) - y;
         if (h > roomBelow) {
-            // LOCAL CHANGE: no room below: on the side with the most room, no taller than that room (a longer list scrolls).
+            // No room below: on the side with the most room, no taller than that room (a longer list scrolls).
             // Above the tile when it fits there or there is more room; an icon near the top (Settings) keeps the menu below it.
             int roomAbove = at[1] - px(16) - px(24);
             if (roomAbove > roomBelow) {
@@ -1536,7 +1198,7 @@ public class MainActivity extends Activity {
         win.clearFlags(android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND);
         win.setGravity(Gravity.TOP | Gravity.START);
         android.view.WindowManager.LayoutParams lp = win.getAttributes();
-        // LOCAL CHANGE: an icon at the right edge of the screen: line the menu's right edge up with the icon's instead of running off the screen.
+        // An icon at the right edge of the screen: line the menu's right edge up with the icon's instead of running off the screen.
         int screenW = getResources().getDisplayMetrics().widthPixels;
         lp.x = at[0] + w > screenW - px(24)
                 ? Math.max(px(24), at[0] + Math.round(anchor.getWidth() * anchor.getScaleX()) - w) : at[0];
@@ -1567,172 +1229,14 @@ public class MainActivity extends Activity {
             } else {
                 rowApps.remove(index);
                 saveRow();
-                focusedKey = rowApps.isEmpty() ? SETTINGS : rowApps.get(Math.min(index, rowApps.size() - 1)); // LOCAL CHANGE: no Add tile any more
+                focusedKey = rowApps.isEmpty() ? SETTINGS : rowApps.get(Math.min(index, rowApps.size() - 1)); // No Add tile any more
                 buildTiles();
             }
         });
     }
 
-    // Hold OK on an HDMI tile: name it after the box plugged into it, or take it off the home
-    // screen. Hiding keeps the input in the TV's list, so nothing about the TV changes.
-    private void showInputMenu(final String id) {
-        View anchor = tile(id);
-        if (anchor == null) return;
-        dropdown(anchor, new String[] {"Rename", "Remove from home"}, which -> {
-            if (which == 0) showInputNames(id);
-            else hideInput(id);
-        });
-    }
-
-    // The TV's own name comes first, and picking it resets the custom one; the rest are the usual
-    // things people plug in, followed by an option to type a name with the TV's keyboard.
-    private void showInputNames(final String id) {
-        TvInputInfo in = inputById(id);
-        if (in == null) return;
-        String own = tvInputLabel(in);
-        List<String> names = new ArrayList<>();
-        names.add(own);
-        for (String p : INPUT_PRESETS) if (!p.equals(own)) names.add(p);
-        // Keep canonical preset names in storage so a language change also updates the tile.
-        List<String> labels = new ArrayList<>();
-        for (int i = 0; i < names.size(); i++) labels.add(i == 0 ? own : Strings.t(names.get(i)));
-        labels.add(Strings.t("Type a name…"));
-        panel(Strings.t("Rename"), labels, which -> {
-            if (which == names.size()) {
-                showInputNameEditor(id, own);
-                return;
-            }
-            setInputName(id, which == 0 ? null : names.get(which));
-            focusedKey = id;
-            buildTiles();
-        });
-    }
-
-    private void showInputNameEditor(final String id, String own) {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert);
-        EditText name = new EditText(builder.getContext());
-        name.setSingleLine(true);
-        name.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_WORDS);
-        name.setImeOptions(EditorInfo.IME_ACTION_DONE);
-        name.setFilters(new InputFilter[] {new InputFilter.LengthFilter(24)});
-        String custom = inputNames().get(id);
-        name.setText(custom != null ? custom : own);
-        final String initialName = name.getText().toString();
-        name.setSelectAllOnFocus(true);
-        name.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(32));
-        name.setTextColor(Color.WHITE);
-        FrameLayout box = new FrameLayout(builder.getContext());
-        box.setPadding(px(40), px(16), px(40), 0);
-        box.addView(name, new FrameLayout.LayoutParams(-1, -2));
-        final AlertDialog dialog = builder.setTitle(Strings.t("Rename"))
-                .setView(box)
-                .setPositiveButton(android.R.string.ok, null)
-                .setNegativeButton(android.R.string.cancel, null)
-                .create();
-        Runnable save = () -> {
-            setInputName(id, name.getText().toString());
-            dialog.dismiss();
-            focusedKey = id;
-            buildTiles();
-        };
-        name.setOnEditorActionListener((v, action, event) -> {
-            if (action == EditorInfo.IME_ACTION_DONE) {
-                save.run();
-                return true;
-            }
-            return false;
-        });
-        Window window = dialog.getWindow();
-        window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE
-                | WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
-        GradientDrawable bg = new GradientDrawable();
-        bg.setCornerRadius(px(RADIUS));
-        bg.setColor(0xFF231D1F);
-        bg.setStroke(Math.max(1, px(2)), 0x17FFFFFF);
-        window.setBackgroundDrawable(bg);
-        dialog.show();
-        window.setLayout(px(800), ViewGroup.LayoutParams.WRAP_CONTENT);
-        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> save.run());
-        name.requestFocus();
-        name.selectAll();
-        name.post(() -> {
-            ((InputMethodManager) getSystemService(INPUT_METHOD_SERVICE))
-                    .showSoftInput(name, InputMethodManager.SHOW_IMPLICIT);
-            // Some TV keyboards move the cursor on startup; reselect after their opening animation.
-            name.postDelayed(() -> {
-                if (dialog.isShowing() && name.hasFocus()
-                        && initialName.equals(name.getText().toString())) name.selectAll();
-            }, 500);
-        });
-    }
-
-    private void hideInput(String id) {
-        Set<String> hidden = hiddenInputs();
-        hidden.add(id);
-        saveHiddenInputs(hidden);
-        focusedKey = SETTINGS; // LOCAL CHANGE: no Add tile any more
-        buildTiles();
-    }
-
-    // Long-press on the + tile: the inputs that were taken off the home screen, to put back.
-    private void showHiddenInputs() {
-        final List<String> ids = new ArrayList<>();
-        List<String> labels = new ArrayList<>();
-        Set<String> hidden = hiddenInputs();
-        for (TvInputInfo in : allInputs()) {
-            if (!hidden.contains(in.getId())) continue;
-            ids.add(in.getId());
-            labels.add(inputLabel(in));
-        }
-        if (ids.isEmpty()) return;
-        panel(Strings.t("Show hidden inputs"), labels, which -> {
-            Set<String> now = hiddenInputs();
-            now.remove(ids.get(which));
-            saveHiddenInputs(now);
-            focusedKey = ids.get(which);
-            buildTiles();
-        });
-    }
-
     private SharedPreferences prefs() {
         return getSharedPreferences(PREFS, 0);
-    }
-
-    // Custom input names, keyed by the input's id. Split only at the first '=', so names can contain '='.
-    private Map<String, String> inputNames() {
-        Map<String, String> out = new HashMap<>();
-        for (String line : prefs().getString(PREF_INPUT_NAMES, "").split("\n")) {
-            int eq = line.indexOf('=');
-            if (eq > 0) out.put(line.substring(0, eq), line.substring(eq + 1));
-        }
-        return out;
-    }
-
-    // A null or blank name goes back to the TV's own label. Keep names on one storage line.
-    private void setInputName(String id, String name) {
-        if (name != null) {
-            name = name.replace("\r", "").replace("\n", "").trim();
-            if (name.isEmpty()) name = null;
-        }
-        Map<String, String> names = inputNames();
-        if (name == null) names.remove(id);
-        else names.put(id, name);
-        StringBuilder out = new StringBuilder();
-        for (Map.Entry<String, String> e : names.entrySet()) {
-            if (out.length() > 0) out.append('\n');
-            out.append(e.getKey()).append('=').append(e.getValue());
-        }
-        prefs().edit().putString(PREF_INPUT_NAMES, out.toString()).apply();
-    }
-
-    private Set<String> hiddenInputs() {
-        Set<String> out = new HashSet<>();
-        for (String id : prefs().getString(PREF_HIDDEN_INPUTS, "").split("\n")) if (!id.isEmpty()) out.add(id);
-        return out;
-    }
-
-    private void saveHiddenInputs(Set<String> ids) {
-        prefs().edit().putString(PREF_HIDDEN_INPUTS, android.text.TextUtils.join("\n", new TreeSet<>(ids))).apply();
     }
 
     // Every launchable app that isn't on the top row yet, by name. The pick is added at the end,
@@ -1750,12 +1254,12 @@ public class MainActivity extends Activity {
                 if (!byLabel.containsKey(label)) byLabel.put(label, p);
             }
         }
-        // LOCAL CHANGE: the same small glass menu as the rest of the Settings menu, under the Settings icon (add) or the app being
+        // The same small glass menu as the rest of the Settings menu, under the Settings icon (add) or the app being
         // replaced. It has no title: its place on screen says which one it is.
         View anchor = replaceIndex < 0 ? null : tile(rowApps.get(replaceIndex));
         if (anchor == null) anchor = tile(SETTINGS);
         if (anchor == null) return;
-        // LOCAL CHANGE: Back goes back to where this was opened from: the Settings menu (add) or the app's own menu (replace).
+        // Back goes back to where this was opened from: the Settings menu (add) or the app's own menu (replace).
         final String replaced = replaceIndex < 0 ? null : rowApps.get(replaceIndex);
         final Runnable back = replaced == null ? () -> backToSettings("Add app") : () -> showEditMenu(replaced);
         if (byLabel.isEmpty()) {
@@ -1786,7 +1290,7 @@ public class MainActivity extends Activity {
 
     // Where app number i sits in the grid.
     private int gridX(int i) {
-        return px(EDGE) + (i % perRow()) * (tileW + colGap); // LOCAL CHANGE: EDGE (64) instead of MARGIN (96); colGap = GAP, or TEXT_GAP in the text styles
+        return px(EDGE) + (i % perRow()) * (tileW + colGap); // EDGE (64) instead of MARGIN (96); colGap = GAP, or TEXT_GAP in the text styles
     }
 
     private int gridY(int i) {
@@ -1845,93 +1349,6 @@ public class MainActivity extends Activity {
             return true;
         }
         return true; // up/down and everything else stay put while moving
-    }
-
-    private static boolean isInput(String key) {
-        return key.indexOf('/') > 0;
-    }
-
-    // The TV's own HDMI inputs (not devices behind them), in order, skipping the ones taken off
-    // the home screen from the tile menu.
-    private List<TvInputInfo> hdmiInputs() {
-        List<TvInputInfo> out = new ArrayList<>();
-        Set<String> hidden = hiddenInputs();
-        for (TvInputInfo in : allInputs()) if (!hidden.contains(in.getId())) out.add(in);
-        return out.size() > MAX_INPUTS ? out.subList(0, MAX_INPUTS) : out;
-    }
-
-    // HDMI inputs are what a home screen shows. install.sh's FAKE_INPUT=1 takes every TV input
-    // instead, so the tiles and their menus can be tested on an emulator that has no HDMI of its own.
-    private boolean countsAsInput(TvInputInfo in) {
-        boolean fake = "1".equals(prefs().getString(PREF_FAKE_INPUTS, null));
-        return (fake || in.getType() == TvInputInfo.TYPE_HDMI) && in.getParentId() == null && !in.isHidden(this);
-    }
-
-    // Every HDMI input the TV reports that isn't switched off in its own settings, hidden or not.
-    private List<TvInputInfo> allInputs() {
-        List<TvInputInfo> out = new ArrayList<>();
-        TvInputManager tim = (TvInputManager) getSystemService(Context.TV_INPUT_SERVICE);
-        if (tim == null) return out;
-        for (TvInputInfo in : tim.getTvInputList()) if (countsAsInput(in)) out.add(in);
-        Collections.sort(out, (a, b) -> a.getId().compareTo(b.getId()));
-        return out;
-    }
-
-    // A TV has inputs of its own (HDMI, AV); a box that plugs into one, like NVIDIA Shield, Chromecast
-    // or a Mi Box, has none. Some TVs register their HDMI inputs a while after starting (#52), so with
-    // none yet it's a box only if HDMI-CEC says it's a playback device and not a TV. When unsure, it's
-    // a TV, so TVs keep their menu.
-    static boolean isBox(Context c) {
-        TvInputManager tim = (TvInputManager) c.getSystemService(Context.TV_INPUT_SERVICE);
-        if (tim != null) for (TvInputInfo in : tim.getTvInputList()) if (in.isPassthroughInput()) return false;
-        List<String> types = cecTypes("ro.hdmi.device_type"), named = cecTypes("ro.hdmi.cec_device_types");
-        if (types.contains("0") || named.contains("tv")) return false;
-        return types.contains("4") || named.contains("playback_device");
-    }
-
-    private static List<String> cecTypes(String prop) {
-        try {
-            String v = String.valueOf(Class.forName("android.os.SystemProperties")
-                    .getMethod("get", String.class).invoke(null, prop)).trim();
-            if (!v.isEmpty()) return Arrays.asList(v.split("\\s*,\\s*"));
-        } catch (Throwable ignored) {}
-        return Collections.emptyList();
-    }
-
-    private TvInputInfo inputById(String id) {
-        for (TvInputInfo in : allInputs()) if (in.getId().equals(id)) return in;
-        return null;
-    }
-
-    // The name picked on the TV, else the one set in Settings > Inputs (like "Bedroom"), else the
-    // TV's own name (like "HDMI 1").
-    private String inputLabel(TvInputInfo in) {
-        String custom = inputNames().get(in.getId());
-        return custom != null ? Strings.t(custom) : tvInputLabel(in);
-    }
-
-    private String tvInputLabel(TvInputInfo in) {
-        String custom = inputLabelOrNull(in.loadCustomLabel(this));
-        if (custom != null) return custom;
-        String label = inputLabelOrNull(in.loadLabel(this));
-        return label != null ? label : "HDMI";
-    }
-
-    private static String inputLabelOrNull(CharSequence raw) {
-        if (raw == null || raw.length() == 0) return null;
-        String label = withoutDeviceType(raw.toString());
-        return "Philips".equalsIgnoreCase(android.os.Build.MANUFACTURER)
-                && (label.isEmpty() || "null".equals(label)) ? null : label;
-    }
-
-    // Philips stores a name as "name&DEVICE_TYPE" (like "Computer&COMPUTER"), so show the name only.
-    // Missing Philips names/types can be the literal "null"; a missing name uses the next fallback.
-    // Only on Philips TVs: elsewhere a name like "AUDIO&VIDEO" is the name itself.
-    private static String withoutDeviceType(String label) {
-        if (!"Philips".equalsIgnoreCase(android.os.Build.MANUFACTURER)) return label;
-        int amp = label.lastIndexOf('&');
-        if (amp >= 0 && (label.endsWith("&") || label.endsWith("&null"))) return label.substring(0, amp).trim();
-        return amp > 0 && label.substring(amp + 1).matches("[A-Z][A-Z0-9_]{2,}") ? label.substring(0, amp).trim() : label;
     }
 
     private boolean userInstalled(String pkg) {

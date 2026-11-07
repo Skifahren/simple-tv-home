@@ -13,7 +13,7 @@ final class Strings {
         "Move", "Replace", "Remove from home", "Uninstall", "App info",
         "Use the arrows to move it, then press OK", "Every app is already here", "Add an app", "Replace %s", "Wallpaper", "TV settings", "Brightness",
         "Rename", "Show hidden inputs", "TV", "Laptop", "PC", "Blu-ray", "Soundbar", "Type a name…",
-        // LOCAL CHANGE: the tile styles (only the Dutch table has these; the others fall back to English; Glass and Duotone were removed again)
+        // the tile styles (only the Dutch table has these; the others fall back to English; Glass and Duotone were removed again)
         "Tile style", "Original", "Muted", "Black & white", "Text on glass", "Text only", "Apps per row", "%d per row",
         "Remote buttons",
     };

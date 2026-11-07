@@ -4,11 +4,7 @@ import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.util.Random;
-import javax.imageio.IIOImage;
 import javax.imageio.ImageIO;
-import javax.imageio.ImageWriteParam;
-import javax.imageio.ImageWriter;
-import javax.imageio.stream.FileImageOutputStream;
 
 // Bakes the ten photo wallpapers of the home screen ONCE, so the TV no longer does it at every choice.
 //
@@ -17,7 +13,9 @@ import javax.imageio.stream.FileImageOutputStream;
 //   2. black over the top 38% (fading out, for the clock and icons), the bottom 50% (fading in, for the apps) and a little
 //      over everything (a projector in a dark room is bright enough)
 // plus a small square picture (centre of the UNdarkened photo) for the wallpaper list.
-// Output: wallpaper_*.jpg (1920x1080, untagged = sRGB, the app only has to decode it) and wallpaper_*_thumb.jpg (96x96).
+// Output: wallpaper_*.webp (1920x1080, sRGB, the app only has to decode it) and wallpaper_*_thumb.webp (96x96).
+// WebP (lossy, quality 80) is about half the size of the JPEG (quality 90) these used to be, with no visible difference;
+// Java can't write WebP, so each picture goes through a lossless PNG and Google's cwebp (macOS: brew install webp).
 // The shading is done per pixel with a little noise before rounding (dithering), as the TV's Skia did, so the dark
 // gradients don't band.
 //
@@ -37,10 +35,11 @@ public class BakeWallpapers {
     static final int[] BOTTOM = {0xB8, 0xB0, 0xB8, 0xD0, 0x98, 0xC0, 0xC0, 0xC0, 0xB0, 0xB0};
     static final int[] DIM = {0x26, 0x26, 0x20, 0x3C, 0x00, 0x30, 0x20, 0x28, 0x20, 0x38};
     static final int W = 1920, H = 1080, THUMB = 96;
-    static final float QUALITY = 0.90f;
+    static final String QUALITY = "80"; // cwebp -q
 
     public static void main(String[] args) throws Exception {
         File in = new File(args[0]), out = new File(args[1]);
+        out.mkdirs();
         Random noise = new Random(7);
         for (int p = 0; p < RES.length; p++) {
             BufferedImage src = ImageIO.read(new File(in, INPUT[p]));
@@ -79,8 +78,8 @@ public class BakeWallpapers {
                 }
                 baked.setRGB(0, y, W, 1, row, 0, W);
             }
-            File bakedFile = new File(out, RES[p] + ".jpg");
-            writeJpeg(baked, bakedFile);
+            File bakedFile = new File(out, RES[p] + ".webp");
+            writeWebp(baked, bakedFile);
 
             // 3. the list picture: centre square of the untouched photo
             int side = Math.min(sw, sh);
@@ -93,8 +92,8 @@ public class BakeWallpapers {
             Graphics2D tg = thumb.createGraphics();
             tg.drawImage(small, 0, 0, null);
             tg.dispose();
-            File thumbFile = new File(out, RES[p] + "_thumb.jpg");
-            writeJpeg(thumb, thumbFile);
+            File thumbFile = new File(out, RES[p] + "_thumb.webp");
+            writeWebp(thumb, thumbFile);
 
             System.out.printf("%-22s %4dx%-4d crop-y %5.1f  ->  %s %d KB, thumb %d KB%n", RES[p], sw, sh, -top,
                     bakedFile.getName(), bakedFile.length() / 1024, thumbFile.length() / 1024);
@@ -105,15 +104,16 @@ public class BakeWallpapers {
         return (int) Math.max(0, Math.min(255, Math.round(v)));
     }
 
-    static void writeJpeg(BufferedImage img, File f) throws Exception {
-        ImageWriter w = ImageIO.getImageWritersByFormatName("jpeg").next();
-        ImageWriteParam p = w.getDefaultWriteParam();
-        p.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
-        p.setCompressionQuality(QUALITY);
-        try (FileImageOutputStream o = new FileImageOutputStream(f)) {
-            w.setOutput(o);
-            w.write(null, new IIOImage(img, null, null), p);
+    // Lossless PNG first, then cwebp: -m 6 = slowest/best compression, -sharp_yuv keeps colour edges crisp.
+    static void writeWebp(BufferedImage img, File f) throws Exception {
+        File png = File.createTempFile("bake", ".png");
+        try {
+            ImageIO.write(img, "png", png);
+            Process c = new ProcessBuilder("cwebp", "-quiet", "-q", QUALITY, "-m", "6", "-sharp_yuv",
+                    png.getPath(), "-o", f.getPath()).inheritIO().start();
+            if (c.waitFor() != 0) throw new IllegalStateException("cwebp failed for " + f);
+        } finally {
+            png.delete();
         }
-        w.dispose();
     }
 }

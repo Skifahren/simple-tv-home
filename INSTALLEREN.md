@@ -1,8 +1,7 @@
 # Simple TV Home installeren (Nederlands)
 
-Simple TV Home is een eenvoudig, snel startscherm voor Android TV en Google TV: een rij app-tegels, een klok, HDMI-ingangen,
-een netwerktegel en een Instellingen-menu (apps toevoegen, verplaatsen, vervangen en verwijderen, tegelstijl, achtergrond en
-aantal apps per rij).
+Simple TV Home is een eenvoudig, snel startscherm voor Android TV en Google TV: rijen app-tegels, een klok en een
+Instellingen-menu (apps toevoegen, verplaatsen, vervangen en verwijderen, tegelstijl, achtergrond en aantal apps per rij).
 
 Gemaakt en getest op een **Epson EF-61W** beamer (Google TV, Android 14). Op andere Android TV / Google TV apparaten zou
 het moeten werken, maar dat is niet getest. Het is een bewerking van [Ansub/tv-detox](https://github.com/Ansub/tv-detox)
@@ -65,7 +64,8 @@ die van een bestand zijn geïnstalleerd. Installeer dan met een computer (B). Zo
 
 ## Privacy
 
-- De app heeft **geen internetrechten**: er kan niets de tv uit.
+- De app heeft **geen internetrechten**: er kan niets de tv uit. Hij vraagt geen andere rechten dan het openen van het
+  verwijder-venster van een app.
 - De Home button-service kijkt alleen wanneer het eigen startscherm van Google TV naar voren komt. Hij kan **niet lezen wat er
   op het scherm staat** en ziet **geen toetsaanslagen**. Android toont bij zo'n service altijd een waarschuwing; die geldt
   ook hier. De code staat in `src/` (`HomeButton.java`); zie ook de [README](README.md).

@@ -3,7 +3,7 @@
 #
 #   sh install.sh <TV_IP>                          your TV apps, picked for you
 #   sh install.sh <TV_IP> "com.netflix.ninja,com.google.android.youtube.tv"
-#   sh install.sh <TV_IP> "" "bluetooth,sound,picture"   adds settings shortcuts by the clock
+#   sh install.sh <TV_IP> "" "bluetooth,sound,picture"   adds settings shortcuts next to the Settings icon
 #   CLOCK=24 sh install.sh <TV_IP>               24-hour clock (12, 24, or auto for the TV's own)
 #
 # On Google TV (Chromecast with Google TV and others) the TV's own home screen is left on.

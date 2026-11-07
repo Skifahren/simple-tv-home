@@ -1,8 +1,7 @@
 # Simple TV Home
 
-A simple, fast home screen for Android TV and Google TV: a row of app tiles, a clock, HDMI inputs and a
-network tile, plus a Settings menu to add, move, replace and remove apps, pick a tile style, a wallpaper and how many apps
-fit in a row.
+A simple, fast home screen for Android TV and Google TV: rows of app tiles, a clock and a Settings menu to add, move,
+replace and remove apps, pick a tile style, a wallpaper and how many apps fit in a row.
 
 Made and tested on an **Epson EF-61W** projector (Google TV, Android 14). It should work on other Android TV / Google TV
 devices (Android 5.0+), but that is not tested.
@@ -20,8 +19,9 @@ What differs from upstream:
 
 - Default app list for the Netherlands/Europe (`apps.txt`); change it before building, or use Settings > Add app on the TV.
 - **Ten photo wallpapers** (see below) instead of gradients, with a wallpaper list that shows thumbnails.
-- Photos are cropped and darkened **once, on the computer** (`tools/BakeWallpapers.java`), so the TV only has to show a
-  ready-made picture. Choosing a wallpaper no longer freezes the screen.
+- Photos are cropped and darkened **once, on the computer** (`tools/BakeWallpapers.java`) and stored as WebP, so the TV
+  only has to show a ready-made picture and the APK stays small (about 3 MB). Choosing a wallpaper no longer freezes the screen.
+- No HDMI-input tiles and no network tile: the home screen is only apps, the clock and a Settings icon (bottom right).
 - Pressing **Back** in a Settings page (Wallpaper, Tile style, Apps per row, Add app) returns to the Settings menu.
 - **Add app** and **Replace** open a menu with the app icons, in the same style as the rest of Settings.
 - On Google TV, pressing **Home** in an app reliably brings this home screen back (the "Home button" service checks again
@@ -31,14 +31,14 @@ What differs from upstream:
 ## Privacy and permissions
 
 - The app has **no INTERNET permission**: it cannot send anything off the TV.
-- It reads the list of installed apps and the network state (to show the network tile). It can open the uninstall prompt
-  for an app, and nothing else.
+- It reads the list of installed apps. It can open the uninstall prompt for an app, and nothing else. It asks for no
+  other permissions.
 - On Google TV the home screen needs the **"Home button" accessibility service** to take over Home. You switch it on
   yourself in Settings > Accessibility; switching it off gives you Google TV's own home screen back. It is configured to
   see only when Google TV's own home screen (`com.google.android.apps.tv.launcherx`) comes to the front, and it cannot
   read the screen content (`canRetrieveWindowContent="false"`).
-- The service **does not see key presses**: the key-filter capability is left out of `res/xml/home_button.xml` in this
-  build. You can check this yourself: `HomeButton.java` is one short file and the XML is ten lines.
+- The service **does not see key presses**: `res/xml/home_button.xml` does not ask for key events and `HomeButton.java`
+  has no key handling. You can check this yourself: `HomeButton.java` is one short file and the XML is ten lines.
 
 ## Remote buttons (a separate add-on, not part of this app)
 
@@ -47,8 +47,7 @@ a key filter, and that lives in a **separate add-on app** with its own package n
 keeps that add-on private; it is **not** in this repository, and this APK works fully without it.
 
 If an app with that package name is installed, **Settings > Remote buttons** shows up in the Settings menu and opens the
-add-on's own settings screen. Without the add-on that line is hidden. The (unused) key code in `HomeButton.java` and the
-note at `PRIME_KEY` / `YOUTUBE_KEY` are what the add-on grew out of; they have no effect in this build.
+add-on's own settings screen. Without the add-on that line is hidden.
 
 ## Install
 
@@ -77,7 +76,8 @@ A signing key (`key.jks`) is created on the first build. **Keep it:** an update 
 is signed with the same key. Never commit `key.jks` (it is in `.gitignore`).
 
 To change the wallpapers, replace the originals in `wallpaper-originals/`, adjust `tools/BakeWallpapers.java` and run it
-(the command is in the file header); it writes the finished pictures into `res/drawable-nodpi/`.
+(the command is in the file header); it writes the finished WebP pictures into `res/drawable-nodpi/`. It needs Google's
+`cwebp` (macOS: `brew install webp`).
 
 ## Licence and credits
 
