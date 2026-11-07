@@ -13,15 +13,20 @@ Er verandert niets onomkeerbaar: je kunt altijd terug naar het eigen startscherm
 ## Wat je nodig hebt
 
 - Een Android TV of Google TV met internet.
-- Het bestand **`tvhome.apk`** van de pagina **Releases** van deze repository (rechts op de repositorypagina).
+- Het bestand **`tvhome.apk`** van de pagina **Releases** van deze repository (rechts op de repositorypagina), of direct via
+  `https://github.com/baflange/simple-tv-home/releases/latest/download/tvhome.apk`.
 - Een manier om het op de tv te zetten: **A** zonder computer (Downloader-app), of **B** met een computer (`adb`).
 
 ## A. Zonder computer (Downloader-app)
 
 1. Installeer op de tv de app **Downloader** (van AFTVnews) uit de Play Store.
-2. Open de pagina **Releases** van deze repository in de browser van je telefoon of computer, klik met de rechtermuisknop
-   (of lang indrukken) op **tvhome.apk** en kopieer het adres. Typ dat adres in Downloader (of gebruik een korte link als
-   de eigenaar die geeft) en download het bestand.
+2. Open Downloader en typ bij de adresbalk dit adres (het wijst altijd naar de nieuwste versie), en kies **Go**:
+
+   ```
+   https://github.com/baflange/simple-tv-home/releases/latest/download/tvhome.apk
+   ```
+
+   Downloader haalt het bestand dan op. Typen met de afstandsbediening gaat traag; liever niet typen? Gebruik dan route B.
 3. Android vraagt of Downloader apps mag installeren: zet dat **aan** (de tv stuurt je naar "Onbekende apps installeren";
    de naam en plek verschillen per tv) en tik daarna op **Installeren**. Als Google Play Protect waarschuwt dat de app onbekend is,
    kies **Toch installeren**.
