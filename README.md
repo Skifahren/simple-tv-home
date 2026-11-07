@@ -1,2 +1,91 @@
-# simple-tv-home
-Home screen for Android TV (Epson EF-61W)
+# Simple TV Home
+
+A simple, fast home screen for Android TV and Google TV: a row of app tiles, a clock, HDMI inputs and a
+network tile, plus a Settings menu to add, move, replace and remove apps, pick a tile style, a wallpaper and how many apps
+fit in a row.
+
+Made and tested on an **Epson EF-61W** projector (Google TV, Android 14). It should work on other Android TV / Google TV
+devices (Android 5.0+), but that is not tested.
+
+> Nederlandse installatiegids: [INSTALLEREN.md](INSTALLEREN.md)
+
+## This is a modified copy of someone else's project
+
+This repository is a derivative of [Ansub/tv-detox](https://github.com/Ansub/tv-detox) by Ansub Khan (MIT licence), taken
+at upstream commit `b22a1e368ee56d670d11115d8408e9025488240b` (see `UPSTREAM_COMMIT.txt`). Only the **home screen app** is
+kept here; the upstream project's debloat/cleanup part is not part of this repository. All credit for the original app and
+its install scripts goes to upstream.
+
+What differs from upstream:
+
+- Default app list for the Netherlands/Europe (`apps.txt`); change it before building, or use Settings > Add app on the TV.
+- **Ten photo wallpapers** (see below) instead of gradients, with a wallpaper list that shows thumbnails.
+- Photos are cropped and darkened **once, on the computer** (`tools/BakeWallpapers.java`), so the TV only has to show a
+  ready-made picture. Choosing a wallpaper no longer freezes the screen.
+- Pressing **Back** in a Settings page (Wallpaper, Tile style, Apps per row, Add app) returns to the Settings menu.
+- **Add app** and **Replace** open a menu with the app icons, in the same style as the rest of Settings.
+- On Google TV, pressing **Home** in an app reliably brings this home screen back (the "Home button" service checks again
+  after Google TV's own home screen has started).
+- Optional remote-button shortcuts (YouTube/Prime), switched off in this public build; see "Remote buttons" below.
+
+## Privacy and permissions
+
+- The app has **no INTERNET permission**: it cannot send anything off the TV.
+- It reads the list of installed apps and the network state (to show the network tile). It can open the uninstall prompt
+  for an app, and nothing else.
+- On Google TV the home screen needs the **"Home button" accessibility service** to take over Home. You switch it on
+  yourself in Settings > Accessibility; switching it off gives you Google TV's own home screen back. It is configured to
+  see only when Google TV's own home screen (`com.google.android.apps.tv.launcherx`) comes to the front, and it cannot
+  read the screen content (`canRetrieveWindowContent="false"`).
+- The service **does not see key presses**: the key-filter capability is left out of `res/xml/home_button.xml` in this
+  build. You can check this yourself: `HomeButton.java` is one short file and the XML is ten lines.
+
+## Remote buttons (off in this build)
+
+The author's projector remote has YouTube and Prime Video buttons, and the code can make them open other apps. This is **switched
+off** here, so the service never sees a key press. The code is still in `HomeButton.java` for anyone who wants it:
+
+| Remote button | Key code | Would open |
+|---|---|---|
+| Prime | 249 | `org.jellyfin.androidtv` (Jellyfin) |
+| YouTube | `KEYCODE_BUTTON_3` (190) | `org.smarttube.stable` (SmartTube) |
+
+To turn it on, follow the note at `PRIME_KEY` / `YOUTUBE_KEY` in `HomeButton.java` (put the key codes back, and add two
+attributes back to `res/xml/home_button.xml`), change `PRIME_TARGET` / `YOUTUBE_TARGET` to your own apps, then build and
+install again. Other remotes send other key codes; the code logs unusual ones under the tag `TvHomeKeys` to help find yours.
+
+## Install
+
+- Friends / without building: see [INSTALLEREN.md](INSTALLEREN.md) (download the APK from the Releases page).
+- With a computer and `adb`: put `tvhome.apk` (from Releases) next to `install.sh`, or build it yourself, then run
+
+  ```sh
+  sh supports.sh <TV_IP>     # looks at the TV first, changes nothing
+  sh install.sh <TV_IP>      # installs; on Google TV the TV's own home screen stays on
+  sh undo.sh <TV_IP>         # removes this home screen again
+  ```
+
+  On Google TV, install.sh leaves Google TV's own home screen on (turning it off has left some devices stuck restarting).
+  Switch on Settings > Accessibility > **Home button** to make Home open this home screen.
+  When you reinstall, do **not** pass an apps argument, so the list you set on the TV is kept.
+
+## Build
+
+Needs Java 17 and the Android SDK (platform 34, build-tools 34.0.0); see the top of `build.sh`.
+
+```sh
+sh build.sh        # writes out/tvhome.apk, signed with key.jks
+```
+
+A signing key (`key.jks`) is created on the first build. **Keep it:** an update only installs over an existing install if it
+is signed with the same key. Never commit `key.jks` (it is in `.gitignore`).
+
+To change the wallpapers, replace the originals in `wallpaper-originals/`, adjust `tools/BakeWallpapers.java` and run it
+(the command is in the file header); it writes the finished pictures into `res/drawable-nodpi/`.
+
+## Licence and credits
+
+- Code: MIT, see `LICENSE` (copyright Ansub Khan for the upstream code, plus the modifications in this repository).
+- Wallpaper photos: from Wikimedia Commons, **CC BY / CC BY-SA** (not MIT). Names, authors, licences and the changes made
+  to them are in [WALLPAPER_CREDITS.txt](WALLPAPER_CREDITS.txt). The originals are in `wallpaper-originals/`.
+- Not affiliated with Epson, Google, Android or the upstream author. "Google TV" and other names belong to their owners.
