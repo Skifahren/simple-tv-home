@@ -18,8 +18,8 @@ devices (Android 5.0+), but that is not tested.
 - Five tile styles (Original, Muted, Black & white, Text on glass, Text only) and 2 to 7 apps per row.
 - Pressing **Back** in a Settings page (Wallpaper, Tile style, Apps per row, Add app) returns to the Settings menu.
 - **Add app** and **Replace** open a menu with the app icons, in the same style as the rest of Settings.
-- On Google TV, pressing **Home** in an app reliably brings this home screen back (the "Home button" service checks again
-  after Google TV's own home screen has started).
+- On Google TV, pressing **Home** in an app, and starting the TV after it was off, reliably brings this home screen
+  (the "Home button" service checks again after Google TV's own home screen has started, and once right after a TV start).
 - A **Settings > Remote buttons** line that appears only when the author's separate add-on app is installed; see "Remote buttons" below.
 
 ## Privacy and permissions
