@@ -16,8 +16,9 @@ import android.view.accessibility.AccessibilityEvent;
 // switching it off puts Home straight back to the TV's own.
 //
 // Google TV handles the Home key before accessibility services see it, so Home itself is not watched.
-// It watches for Google TV's main screen (not its other pages) to open, after Home or a restart,
-// and opens this one over it.
+// It watches for Google TV's main screen (not its other pages) to open after Home, and opens this one over it.
+// After a TV start that window opens before the service is running, so the service also opens this home screen
+// once, right after it connects (see onServiceConnected).
 //
 // It sees no key presses: res/xml/home_button.xml does not ask for key events, and there is no onKeyEvent here.
 // (Remote buttons that open apps are a separate add-on app; see the README.)
@@ -34,6 +35,8 @@ public class HomeButton extends AccessibilityService {
     // no new window, no event, so this service did nothing and the user could not get to this home any more.
     // So after every Google TV home event we look again shortly after, and open this home again if it is not in front.
     private static final long VERIFY_MS = 900;
+    // The service only counts as "just after a TV start" when it connects within this time of the TV starting.
+    private static final long START_WINDOW_MS = 3 * 60 * 1000;
     private static final android.os.Handler HANDLER = new android.os.Handler(android.os.Looper.getMainLooper());
     private static volatile boolean homeVisible; // set by MainActivity.onResume / onPause
     private boolean googleTvHomeLast; // the last Google TV window that opened was its home screen (not e.g. an account page)
@@ -65,6 +68,34 @@ public class HomeButton extends AccessibilityService {
         // The service only hears Google TV's windows (see home_button.xml): note whether the newest one is its home.
         googleTvHomeLast = GOOGLE_TV_HOME.getClassName().equals(String.valueOf(event.getClassName()));
         if (!googleTvHomeLast || !setupDone()) return;
+        openOwnHome();
+    }
+
+    // A TV start brings Google TV's home up BEFORE this service has connected: Android only starts accessibility
+    // services once the TV is unlocked, and then the app's process has to start first (about 0.1 s here, more on a busy
+    // start). So the window event above is missed, and Google TV stays in front until its next window (the next Home).
+    // Once per TV start, right after the service connects, we therefore treat Google TV's home as the screen in front.
+    @Override
+    protected void onServiceConnected() {
+        super.onServiceConnected();
+        if (SystemClock.elapsedRealtime() > START_WINDOW_MS || !setupDone()) return;
+        SharedPreferences prefs = prefs(this);
+        if (startHandled(prefs)) return;
+        prefs.edit().putInt("start_count", bootCount(this)).putLong("start_time", bootTime()).commit();
+        googleTvHomeLast = true;
+        openOwnHome();
+    }
+
+    // The TV start (see onServiceConnected) was already handled once: not again when the service reconnects.
+    private boolean startHandled(SharedPreferences prefs) {
+        int boot = bootCount(this);
+        int saved = prefs.getInt("start_count", -1);
+        if (boot >= 0 && saved >= 0) return boot == saved;
+        return Math.abs(bootTime() - prefs.getLong("start_time", 0)) < 5000;
+    }
+
+    // Opens this home screen over Google TV's, and looks again shortly after (see VERIFY_MS).
+    private void openOwnHome() {
         SharedPreferences prefs = prefs(this);
         if (stayingOnGoogleTv(prefs)) return;
         HANDLER.removeCallbacks(verify); // Look again shortly, whatever happens below
