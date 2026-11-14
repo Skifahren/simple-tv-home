@@ -15,6 +15,8 @@ devices (Android 5.0+), but that is not tested.
 - Photos are cropped and darkened **once, on the computer** (`tools/BakeWallpapers.java`) and stored as WebP, so the TV
   only has to show a ready-made picture and the APK stays small (about 3 MB).
 - Just apps, the clock and a Settings icon (bottom right): no HDMI-input tiles, no network tile.
+- A small **key and "VPN"** above the date while a VPN is connected, like Google TV's own home screen. Android only says
+  that a VPN is up, not which one, so it shows for any VPN (NetBird, Tailscale, WireGuard...) and is hidden otherwise.
 - Five tile styles (Original, Muted, Black & white, Text on glass, Text only) and 2 to 7 apps per row.
 - Pressing **Back** in a Settings page (Wallpaper, Tile style, Apps per row, Add app) returns to the Settings menu.
 - **Add app** and **Replace** open a menu with the app icons, in the same style as the rest of Settings.
@@ -25,8 +27,9 @@ devices (Android 5.0+), but that is not tested.
 ## Privacy and permissions
 
 - The app has **no INTERNET permission**: it cannot send anything off the TV.
-- It reads the list of installed apps. It can open the uninstall prompt for an app, and nothing else. It asks for no
-  other permissions.
+- It reads the list of installed apps. It can open the uninstall prompt for an app, and nothing else.
+- It has the **ACCESS_NETWORK_STATE** permission (a normal permission, no question asked) only to see whether a VPN is
+  connected. It cannot send or receive anything. It asks for no other permissions.
 - On Google TV the home screen needs the **"Home button" accessibility service** to take over Home. You switch it on
   yourself in Settings > Accessibility; switching it off gives you Google TV's own home screen back. It is configured to
   see only when Google TV's own home screen (`com.google.android.apps.tv.launcherx`) comes to the front, and it cannot

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="io.github.baflange.simpletvhome" android:versionCode="43" android:versionName="1.0.2">
+    package="io.github.baflange.simpletvhome" android:versionCode="44" android:versionName="1.0.3">
     <uses-sdk android:minSdkVersion="21" android:targetSdkVersion="34" />
     <!-- Android 11+ only shows apps a home screen asks to see: TV apps and normal apps. -->
     <queries>
@@ -27,6 +27,8 @@
     </queries>
     <!-- Lets "Uninstall" in the app menu open Android's uninstall prompt. -->
     <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
+    <!-- Lets the home screen see whether a VPN is connected (the VPN badge). Cannot send anything off the TV. -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-feature android:name="android.software.leanback" android:required="false" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
     <application android:label="Home" android:allowBackup="false" android:banner="@drawable/banner" android:icon="@drawable/icon"

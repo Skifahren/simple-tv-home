@@ -64,7 +64,7 @@ die van een bestand zijn geïnstalleerd. Installeer dan met een computer (B). Zo
 ## Privacy
 
 - De app heeft **geen internetrechten**: er kan niets de tv uit. Hij vraagt geen andere rechten dan het openen van het
-  verwijder-venster van een app.
+  verwijder-venster van een app en het zien of er een VPN verbonden is (dan staat er een sleutel met "VPN" boven de datum).
 - De Home button-service kijkt alleen wanneer het eigen startscherm van Google TV naar voren komt. Hij kan **niet lezen wat er
   op het scherm staat** en ziet **geen toetsaanslagen**. Android toont bij zo'n service altijd een waarschuwing; die geldt
   ook hier. De code staat in `src/` (`HomeButton.java`); zie ook de [README](README.md).
