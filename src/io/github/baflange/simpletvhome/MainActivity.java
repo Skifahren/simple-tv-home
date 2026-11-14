@@ -30,6 +30,10 @@ import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.LayerDrawable;
+import android.net.ConnectivityManager;
+import android.net.Network;
+import android.net.NetworkCapabilities;
+import android.net.NetworkRequest;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.Settings;
@@ -163,6 +167,9 @@ public class MainActivity extends Activity {
     private int rowStep;   // Distance between rows, tile height + ROW_GAP
     private LinearLayout iconBar; // Bottom right: the Settings icon and any settings shortcuts (the clock is on its own, top right)
     private FrameLayout.LayoutParams iconBarLp;
+    private LinearLayout vpnBadge; // Top right above the date: a key and "VPN", shown only while a VPN is connected
+    private ConnectivityManager.NetworkCallback vpnCallback;
+    private final java.util.Set<Network> vpnNetworks = new java.util.HashSet<>(); // the VPN networks that are up (main thread only)
     private float tileK = 1f; // How much smaller than a 258 px reference tile the tiles are (1 = same size)
     private final List<View> tiles = new ArrayList<>();
     private final Map<View, ValueAnimator> lifts = new WeakHashMap<>(); // a running focus fade per tile
@@ -230,6 +237,23 @@ public class MainActivity extends Activity {
         clockLp.topMargin = px(EDGE - 16);
         clockLp.rightMargin = px(EDGE);
         root.addView(clock, clockLp);
+        // The VPN badge sits right above the date, in the same right edge. Not focusable: it only shows a state.
+        vpnBadge = new LinearLayout(this);
+        vpnBadge.setOrientation(LinearLayout.HORIZONTAL);
+        vpnBadge.setGravity(Gravity.CENTER_VERTICAL);
+        vpnBadge.setVisibility(View.GONE);
+        ImageView vpnKey = new ImageView(this);
+        vpnKey.setImageDrawable(new LineIcon(LineIcon.KEY));
+        vpnBadge.addView(vpnKey, new LinearLayout.LayoutParams(px(28), px(28)));
+        TextView vpnText = text(px(22), 0xA8FFFFFF, semibold);
+        vpnText.setText("VPN"); // the same word in every language, so it is not in Strings
+        LinearLayout.LayoutParams vtp = new LinearLayout.LayoutParams(-2, -2);
+        vtp.leftMargin = px(8);
+        vpnBadge.addView(vpnText, vtp);
+        FrameLayout.LayoutParams vpnLp = new FrameLayout.LayoutParams(-2, -2, Gravity.TOP | Gravity.END);
+        vpnLp.topMargin = px(EDGE - 16) - px(36);
+        vpnLp.rightMargin = px(EDGE);
+        root.addView(vpnBadge, vpnLp);
         iconBar = new LinearLayout(this);
         iconBar.setOrientation(LinearLayout.HORIZONTAL);
         iconBar.setGravity(Gravity.CENTER_VERTICAL);
@@ -338,6 +362,7 @@ public class MainActivity extends Activity {
         }
         View f = getCurrentFocus();
         if (f == null && !tiles.isEmpty()) tiles.get(0).requestFocus();
+        watchVpn();
         HomeButton.onHomeResumed(this); // back on this home screen: Home comes here again
         HomeButton.setHomeVisible(true); // Lets the Home button service see whether this home is in front
         // Only counted as opened once it has stayed up a moment, so a crash right after opening still
@@ -350,6 +375,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onPause() {
         super.onPause();
+        unwatchVpn();
         // Left normally (an app or Settings opened), so it didn't crash.
         getWindow().getDecorView().removeCallbacks(homeOk);
         HomeButton.onHomeOk(this);
@@ -1386,6 +1412,52 @@ public class MainActivity extends Activity {
         } catch (Throwable t) {
             return d;
         }
+    }
+
+    // Shows the VPN badge while any VPN (NetBird, Tailscale, WireGuard...) is connected, like Google TV's own home screen.
+    // Android only says "a VPN is up", not which one. Needs ACCESS_NETWORK_STATE, which cannot send anything off the TV.
+    // Watched only while this home screen is in front: onResume starts it (and reads the current state), onPause stops it.
+    @SuppressWarnings("deprecation")
+    private void watchVpn() {
+        if (vpnCallback != null) return;
+        try {
+            final ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+            vpnNetworks.clear();
+            // The state right now (the callback below only reports changes and the networks that are up when it starts).
+            for (Network n : cm.getAllNetworks()) {
+                NetworkCapabilities nc = cm.getNetworkCapabilities(n);
+                if (nc != null && nc.hasTransport(NetworkCapabilities.TRANSPORT_VPN)) vpnNetworks.add(n);
+            }
+            showVpn();
+            // A default request skips VPNs (NOT_VPN), so that capability goes.
+            NetworkRequest req = new NetworkRequest.Builder()
+                    .addTransportType(NetworkCapabilities.TRANSPORT_VPN)
+                    .removeCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN).build();
+            vpnCallback = new ConnectivityManager.NetworkCallback() {
+                @Override public void onAvailable(final Network n) {
+                    runOnUiThread(() -> { vpnNetworks.add(n); showVpn(); });
+                }
+                @Override public void onLost(final Network n) {
+                    runOnUiThread(() -> { vpnNetworks.remove(n); showVpn(); });
+                }
+            };
+            cm.registerNetworkCallback(req, vpnCallback);
+        } catch (RuntimeException e) { // no permission or a TV without the service: the badge just stays hidden
+            vpnCallback = null;
+            vpnBadge.setVisibility(View.GONE);
+        }
+    }
+
+    private void unwatchVpn() {
+        if (vpnCallback == null) return;
+        try {
+            ((ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE)).unregisterNetworkCallback(vpnCallback);
+        } catch (RuntimeException ignored) { }
+        vpnCallback = null;
+    }
+
+    private void showVpn() {
+        vpnBadge.setVisibility(vpnNetworks.isEmpty() ? View.GONE : View.VISIBLE);
     }
 
     private int px(int v) {

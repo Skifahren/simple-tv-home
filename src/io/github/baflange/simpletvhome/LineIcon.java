@@ -20,6 +20,9 @@ final class LineIcon extends Drawable {
     static final int[] PICTURE ={0, 30, 50, 1, 210, 50, 1, 210, 165, 1, 30, 165, 2, 0, 120, 165, 1, 120, 200,
             0, 80, 200, 1, 160, 200};
 
+    // A key (the VPN indicator): a ring on the left, the shaft going right, two teeth hanging down.
+    static final int[] KEY = {3, 65, 120, 35, 0, 100, 120, 1, 215, 120, 0, 170, 120, 1, 170, 165, 0, 205, 120, 1, 205, 155};
+
     private final int[] ops;
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Path path = new Path();
